@@ -1,1 +1,10 @@
-{"status": null, "history": []}
+{
+  "status": "open",
+  "history": [
+    {
+      "status": "open",
+      "changed_at": "2026-07-26T04:41:02+00:00"
+    }
+  ],
+  "last_checked": "2026-07-26T04:41:02+00:00"
+}
