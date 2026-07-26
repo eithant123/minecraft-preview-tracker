@@ -14,10 +14,10 @@ from datetime import datetime, timezone
 import requests
 
 # Link público oficial del beta de Minecraft Preview en TestFlight
-TESTFLIGHT_URL = "https://testflight.apple.com/join/qC1ZnReJ"
+TESTFLIGHT_URL = "https://departures.to/apps/12975"
 
 # Frase que Apple muestra cuando el beta NO tiene cupos disponibles
-FULL_PHRASE = "isn't accepting any new testers"
+FULL_PHRASE = "Reached capacity"
 
 STATUS_FILE = "status.json"
 
