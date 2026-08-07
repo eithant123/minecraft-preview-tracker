@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WaitRadar — Minecraft Preview</title>
+<meta name="description" content="Estado en vivo del beta de Minecraft Preview en TestFlight. Avisos gratis por Telegram cuando se abre un cupo.">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0c1015; --panel:#12181f; --panel2:#0e141a;
+    --grass:#5b9c3e; --grass-dark:#3d6b2a; --dirt:#7a5230; --stone:#5a626b;
+    --alert:#e0453a; --alert-dim:#c0392b; --sky:#4a90d9; --gold:#e8b93e;
+    --text:#e8ecef; --dim:#7d8790; --line:#232d38;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--night);
+    color:var(--text); font-family:'JetBrains Mono', monospace;
+    display:flex; flex-direction:column; align-items:center;
+  }
+
+  header{
+    width:100%; max-width:900px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid var(--line);
+    flex-wrap:wrap; gap:8px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .blocks{ display:flex; gap:2px; }
+  .brand .blocks span{ width:10px;height:10px; background:var(--grass); }
+  .brand .blocks span:nth-child(2){background:var(--dirt);}
+  .brand .blocks span:nth-child(3){background:var(--stone);}
+  .brand-name{ font-family:'Press Start 2P', monospace; font-size:11px; color:var(--text); letter-spacing:.03em; }
+  .brand-name b{ color:var(--gold); }
+  .live{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); }
+  .live-dot{ width:7px;height:7px; border-radius:50%; background:var(--stone); box-shadow:0 0 8px var(--stone); animation:pulse 1.6s infinite; }
+  .live-dot.up{ background:var(--grass); box-shadow:0 0 8px var(--grass); }
+  .live-dot.down{ background:var(--alert); box-shadow:0 0 8px var(--alert); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  .updated{ font-size:10.5px; color:var(--dim); }
+
+  main{ width:100%; max-width:900px; padding:20px; }
+
+  .row{ display:grid; grid-template-columns: 1fr 1.6fr 1fr; gap:14px; margin-bottom:14px; }
+  @media (max-width:720px){ .row{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .card-label{ font-size:10px; color:var(--dim); letter-spacing:.05em; text-transform:uppercase; margin-bottom:10px; }
+
+  .big-num{ font-family:'Press Start 2P', monospace; font-size:34px; line-height:1; margin-bottom:6px; }
+  .big-num.full{ color:var(--alert); }
+  .big-num.open{ color:var(--grass); }
+  .big-sub{ font-size:11px; color:var(--dim); }
+
+  .status-pill{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .status-dot{ width:12px;height:12px; border-radius:50%; }
+  .status-dot.full{ background:var(--alert); box-shadow:0 0 12px var(--alert); }
+  .status-dot.open{ background:var(--grass); box-shadow:0 0 12px var(--grass); }
+  .status-headline{ font-size:16px; font-weight:700; }
+  .status-headline.full{ color:var(--alert); }
+  .status-headline.open{ color:var(--grass); }
+  .status-desc{ font-size:11px; color:var(--dim); line-height:1.5; }
+  .status-desc a{ color:var(--sky); }
+
+  .chart-title{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .chart-title span{ font-size:10px; color:var(--dim); }
+  svg{ width:100%; height:120px; display:block; }
+  .grid-line{ stroke:var(--line); stroke-width:1; }
+  .chart-line{ fill:none; stroke:var(--alert); stroke-width:2; }
+  .chart-fill{ fill:url(#grad); opacity:.5; }
+  .axis-label{ font-size:9px; fill:var(--dim); font-family:'JetBrains Mono', monospace; }
+  .empty-chart{ font-size:10.5px; color:var(--dim); padding:30px 0; text-align:center; }
+
+  .bottom-row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:20px; }
+  .bell{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--dim); }
+  .bell a{ color:var(--sky); text-decoration:none; }
+  .share-btn{
+    display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+    background:rgba(74,144,217,.15); color:var(--sky); border:1px solid rgba(74,144,217,.4);
+    padding:8px 14px; border-radius:8px; cursor:pointer;
+  }
+
+  .tip-card{ margin-bottom:20px; }
+  .tip-text{ font-size:11.5px; color:var(--dim); line-height:1.6; margin-bottom:14px; }
+  .tip-buttons{ display:flex; gap:10px; flex-wrap:wrap; }
+  .tip-btn{
+    flex:1; min-width:140px; text-align:center; font-size:11.5px; font-weight:700;
+    padding:10px 14px; border-radius:8px; cursor:pointer;
+    background:rgba(232,185,62,.12); color:var(--gold); border:1px solid rgba(232,185,62,.4);
+    transition: background .2s;
+  }
+  .tip-btn:active{ background:rgba(232,185,62,.25); }
+
+  .roadmap-note{ font-size:10.5px; color:var(--dim); text-align:center; margin-bottom:24px; }
+
+  footer{ font-size:10px; color:var(--dim); text-align:center; padding:16px 20px 30px; }
+  footer a{ color:var(--sky); text-decoration:none; }
+
+  .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:60px 20px; }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="blocks"><span></span><span></span><span></span></div>
+      <div class="brand-name">WAIT<b>RADAR</b></div>
+    </div>
+    <div class="live"><span class="live-dot" id="liveDot"></span><span id="liveLabel">Cargando estado…</span></div>
+    <div class="updated" id="updatedLabel"></div>
+  </header>
+
+  <main id="main">
+    <div class="load-msg" id="loadMsg">Cargando datos de status.json…</div>
+  </main>
+
+  <footer>
+    Datos de <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · revisado automáticamente cada 15 min ·
+    <a href="https://t.me/EithanCupoBot" target="_blank" rel="noopener">Únete al bot de Telegram</a>
+  </footer>
+
+<script>
+const STATUS_URL = "./status.json";
+
+function fmtRelative(iso){
+  const then = new Date(iso);
+  const diffMs = Date.now() - then.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "hace segundos";
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days} día${days === 1 ? "" : "s"}`;
+}
+
+function daysSince(iso){
+  const then = new Date(iso);
+  const diffMs = Date.now() - then.getTime();
+  return Math.floor(diffMs / 86400000);
+}
+
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString("es", { day: "2-digit", month: "short" });
+}
+
+function buildChart(history, currentStatus, lastChecked){
+  // Construye una línea escalonada últimos 30 días a partir de los cambios registrados.
+  const now = new Date(lastChecked || Date.now());
+  const windowStart = new Date(now.getTime() - 30 * 86400000);
+
+  const events = (history || [])
+    .map(h => ({ status: h.status, at: new Date(h.changed_at) }))
+    .sort((a, b) => a.at - b.at);
+
+  if (events.length === 0){
+    return null;
+  }
+
+  // Estado al inicio de la ventana de 30 días
+  let stateAtStart = events[0].status;
+  for (const e of events){
+    if (e.at <= windowStart) stateAtStart = e.status; else break;
+  }
+
+  const points = [{ at: windowStart, status: stateAtStart }];
+  for (const e of events){
+    if (e.at > windowStart && e.at <= now) points.push({ at: e.at, status: e.status });
+  }
+  points.push({ at: now, status: currentStatus });
+
+  const totalMs = now - windowStart;
+  const toX = (d) => Math.round(((d - windowStart) / totalMs) * 300);
+  const yFor = (status) => (status === "full" ? 15 : 100);
+
+  // Escalonado: cada punto se mantiene horizontal hasta el siguiente cambio
+  let path = `M0,${yFor(points[0].status)}`;
+  for (let i = 1; i < points.length; i++){
+    const x = toX(points[i].at);
+    const yPrev = yFor(points[i - 1].status);
+    const yNow = yFor(points[i].status);
+    path += ` L${x},${yPrev} L${x},${yNow}`;
+  }
+  const lastX = toX(now);
+  path += ` L${lastX},${yFor(points[points.length - 1].status)}`;
+
+  return { path, windowStart, now };
+}
+
+async function render(){
+  const main = document.getElementById("main");
+  const liveDot = document.getElementById("liveDot");
+  const liveLabel = document.getElementById("liveLabel");
+  const updatedLabel = document.getElementById("updatedLabel");
+
+  let data;
+  try{
+    const res = await fetch(STATUS_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("status.json no encontrado (" + res.status + ")");
+    data = await res.json();
+  }catch(err){
+    main.innerHTML = `<div class="load-msg">No se pudo cargar el estado (${err.message}).<br>Verificá que status.json esté publicado junto a esta página.</div>`;
+    liveLabel.textContent = "Sin conexión con los datos";
+    return;
+  }
+
+  const status = data.status; // "open" | "full"
+  const isOpen = status === "open";
+  const history = data.history || [];
+  const lastChecked = data.last_checked;
+
+  liveDot.className = "live-dot " + (isOpen ? "up" : "down");
+  liveLabel.textContent = "Estado en tiempo real";
+  updatedLabel.textContent = lastChecked ? `Actualizado ${fmtRelative(lastChecked)}` : "";
+
+  // Días sin cupo / desde que se abrió
+  const lastFullEntry = [...history].reverse().find(h => h.status === "full");
+  const lastOpenEntry = [...history].reverse().find(h => h.status === "open");
+  let bigNum, bigSub;
+  if (isOpen){
+    bigNum = lastOpenEntry ? daysSince(lastOpenEntry.changed_at) : 0;
+    bigSub = "Días con cupo disponible — ¡entrá ya!";
+  } else {
+    bigNum = lastFullEntry ? daysSince(lastFullEntry.changed_at) : 0;
+    bigSub = "Días sin cupo detectado";
+  }
+
+  const chart = buildChart(history, status, lastChecked);
+  const chartHtml = chart ? `
+    <svg viewBox="0 0 300 120" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--alert)" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="var(--alert)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line class="grid-line" x1="0" y1="30" x2="300" y2="30"/>
+      <line class="grid-line" x1="0" y1="60" x2="300" y2="60"/>
+      <line class="grid-line" x1="0" y1="90" x2="300" y2="90"/>
+      <path class="chart-fill" d="${chart.path} L300,120 L0,120 Z"/>
+      <path class="chart-line" d="${chart.path}"/>
+    </svg>
+    <div style="display:flex; justify-content:space-between;">
+      <span class="axis-label">${fmtDate(chart.windowStart)}</span>
+      <span class="axis-label">${fmtDate(chart.now)}</span>
+    </div>
+  ` : `<div class="empty-chart">Aún no hay suficiente historial para graficar (se acumula con cada cambio de estado).</div>`;
+
+  main.innerHTML = `
+    <div class="row">
+      <div class="card">
+        <div class="card-label">${isOpen ? "Días con cupo" : "Días sin cupo"}</div>
+        <div class="big-num ${isOpen ? "open" : "full"}">${bigNum}</div>
+        <div class="big-sub">${bigSub}</div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title"><span>ACTIVIDAD DE CUPOS · ÚLTIMOS 30 DÍAS</span></div>
+        ${chartHtml}
+      </div>
+
+      <div class="card">
+        <div class="card-label">Minecraft Preview</div>
+        <div class="status-pill">
+          <span class="status-dot ${isOpen ? "open" : "full"}"></span>
+          <span class="status-headline ${isOpen ? "open" : "full"}">${isOpen ? "Cupo disponible" : "Sin cupos"}</span>
+        </div>
+        <div class="status-desc">
+          ${isOpen
+            ? `Hay cupo ahora mismo. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Entrá al beta</a>.`
+            : "No hay cupos disponibles en este momento."}
+          <br><br>Próxima revisión: en ~15 min.
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <div class="bell">🔔 Notificaciones gratis vía <a href="https://t.me/EithanCupoBot" target="_blank" rel="noopener">Telegram</a></div>
+      <div class="share-btn" onclick="navigator.share ? navigator.share({title:'WaitRadar', text:'${isOpen ? "Hay cupo en Minecraft Preview ahora" : "Estado del beta de Minecraft Preview"}', url:location.href}) : alert('Copiá el link de esta página para compartir: ' + location.href)">↗ Compartir estado</div>
+    </div>
+
+    <div class="card tip-card">
+      <div class="card-label">Apoya el proyecto</div>
+      <div class="tip-text">
+        Este sitio y el bot son gratis y los mantengo yo solo, en mi tiempo libre.
+        Si te sirvió, una propina ayuda a seguir mejorando el diseño y agregando más juegos. Nada es obligatorio 🙂
+      </div>
+      <div class="tip-buttons">
+        <div class="tip-btn" onclick="alert('Próximamente: Telegram Stars')">⭐ Telegram Stars</div>
+        <div class="tip-btn" onclick="alert('Próximamente: PayPal')">💛 PayPal</div>
+      </div>
+    </div>
+
+    <div class="roadmap-note">más apps y juegos próximamente — por ahora WaitRadar sigue de cerca Minecraft Preview</div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>
