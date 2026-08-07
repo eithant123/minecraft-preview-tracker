@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WaitRadar — Minecraft Preview</title>
 <meta name="description" content="Estado en vivo del beta de Minecraft Preview en TestFlight. Avisos gratis por Telegram cuando se abre un cupo.">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0c1015">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WaitRadar">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -99,6 +106,20 @@
   footer a{ color:var(--sky); text-decoration:none; }
 
   .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:60px 20px; }
+
+  .install-bar{
+    display:none; align-items:center; justify-content:space-between; gap:12px;
+    width:100%; max-width:900px; margin:0 20px 16px; padding:12px 16px;
+    background:rgba(91,156,62,.12); border:1px solid rgba(91,156,62,.4); border-radius:10px;
+    font-size:11.5px; box-sizing:border-box;
+  }
+  .install-bar.show{ display:flex; }
+  .install-bar span{ color:var(--text); }
+  .install-btn{
+    flex-shrink:0; font-size:11px; font-weight:700; cursor:pointer;
+    background:var(--grass-dark); color:#fff; border:none; border-radius:8px; padding:8px 14px;
+  }
+  .install-dismiss{ flex-shrink:0; color:var(--dim); cursor:pointer; font-size:14px; padding:4px 8px; }
 </style>
 </head>
 <body>
@@ -111,6 +132,12 @@
     <div class="live"><span class="live-dot" id="liveDot"></span><span id="liveLabel">Cargando estado…</span></div>
     <div class="updated" id="updatedLabel"></div>
   </header>
+
+  <div class="install-bar" id="installBar">
+    <span>📲 Instalá WaitRadar como app en tu celular</span>
+    <button class="install-btn" id="installBtn">Instalar</button>
+    <span class="install-dismiss" id="installDismiss">✕</span>
+  </div>
 
   <main id="main">
     <div class="load-msg" id="loadMsg">Cargando datos de status.json…</div>
@@ -299,6 +326,55 @@ async function render(){
 }
 
 render();
+
+// --- PWA: registrar service worker ---
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  });
+}
+
+// --- PWA: botón de instalar (Android/desktop Chrome) ---
+let deferredPrompt = null;
+const installBar = document.getElementById("installBar");
+const installBtn = document.getElementById("installBtn");
+const installDismiss = document.getElementById("installDismiss");
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem("waitradar_install_dismissed")){
+    installBar.classList.add("show");
+  }
+});
+
+installBtn?.addEventListener("click", async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBar.classList.remove("show");
+});
+
+installDismiss?.addEventListener("click", () => {
+  installBar.classList.remove("show");
+  localStorage.setItem("waitradar_install_dismissed", "1");
+});
+
+// --- PWA: iPhone/iPad no dispara beforeinstallprompt, hay que explicar el paso manual ---
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isStandalone = window.navigator.standalone === true;
+if (isIOS && !isStandalone && !localStorage.getItem("waitradar_install_dismissed")){
+  installBar.innerHTML = `
+    <span>📲 En iPhone: tocá <b>Compartir</b> ↑ y luego <b>"Agregar a pantalla de inicio"</b></span>
+    <span class="install-dismiss" id="installDismissIOS">✕</span>
+  `;
+  installBar.classList.add("show");
+  document.getElementById("installDismissIOS").addEventListener("click", () => {
+    installBar.classList.remove("show");
+    localStorage.setItem("waitradar_install_dismissed", "1");
+  });
+}
 </script>
 </body>
 </html>
