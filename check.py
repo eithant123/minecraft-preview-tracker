@@ -26,7 +26,6 @@ TESTFLIGHT_URL = "https://departures.to/apps/12975"
 FULL_PHRASE = "Reached capacity"
 
 STATUS_FILE = "status.json"
-PREFS_FILE = "prefs.json"
 
 DEFAULT_PREFS = {
     "notify_on_open": True,
@@ -67,14 +66,28 @@ def save_status(data: dict) -> None:
 
 
 def load_prefs() -> dict:
-    """Lee prefs.json y completa cualquier campo faltante con el default."""
+    """Lee las preferencias desde Supabase (tabla prefs, fila id=1).
+    Si falla la conexión, usa los defaults para no dejar de avisar por eso.
+    """
     prefs = dict(DEFAULT_PREFS)
-    if os.path.exists(PREFS_FILE):
-        try:
-            with open(PREFS_FILE, "r", encoding="utf-8") as f:
-                prefs.update(json.load(f))
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"No se pudo leer prefs.json, uso defaults: {e}", file=sys.stderr)
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        print("Faltan SUPABASE_URL o SUPABASE_KEY, uso defaults.", file=sys.stderr)
+        return prefs
+    try:
+        resp = requests.get(
+            f"{url}/rest/v1/prefs",
+            params={"id": "eq.1", "select": "*"},
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+        if rows:
+            prefs.update(rows[0])
+    except Exception as e:
+        print(f"No se pudo leer prefs de Supabase, uso defaults: {e}", file=sys.stderr)
     return prefs
 
 

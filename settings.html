@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WaitRadar — Configuración</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0c1015; --panel:#12181f;
+    --grass:#5b9c3e; --grass-dark:#3d6b2a; --dirt:#7a5230; --stone:#5a626b;
+    --alert:#e0453a; --sky:#4a90d9; --gold:#e8b93e;
+    --text:#e8ecef; --dim:#7d8790; --line:#232d38;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--night);
+    color:var(--text); font-family:'JetBrains Mono', monospace;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  header{
+    width:100%; max-width:640px;
+    display:flex; align-items:center; gap:10px;
+    padding:16px 20px; border-bottom:1px solid var(--line);
+  }
+  .back{ color:var(--dim); text-decoration:none; font-size:13px; }
+  .brand-name{ font-family:'Press Start 2P', monospace; font-size:11px; }
+  .brand-name b{ color:var(--gold); }
+
+  main{ width:100%; max-width:640px; padding:20px; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:14px; }
+  .card-title{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:14px; }
+
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .row:last-child{ border-bottom:none; }
+  .row-label{ font-size:12.5px; }
+  .row-desc{ font-size:10.5px; color:var(--dim); margin-top:3px; }
+
+  .switch{ width:42px; height:24px; border-radius:20px; background:#2a3441; position:relative; flex-shrink:0; cursor:pointer; border:1px solid var(--line); transition:background .2s; }
+  .switch.on{ background:var(--grass-dark); }
+  .switch::after{ content:""; position:absolute; top:2px; left:2px; width:18px;height:18px; border-radius:50%; background:#8b97a6; transition:left .2s, background .2s; }
+  .switch.on::after{ left:20px; background:#fff; }
+
+  input[type=time], select{
+    background:var(--night); color:var(--text); border:1px solid var(--line);
+    border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;
+  }
+
+  .mute-btns{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .mute-btn{
+    font-size:11px; padding:8px 12px; border-radius:8px; cursor:pointer;
+    background:var(--night); border:1px solid var(--line); color:var(--text);
+  }
+  .mute-btn.active{ background:rgba(224,69,58,.15); border-color:var(--alert); color:#ff9a90; }
+  .mute-status{ font-size:10.5px; color:var(--dim); margin-top:10px; }
+
+  .output-box{
+    background:var(--night); border:1px solid var(--line); border-radius:8px;
+    padding:12px; font-size:10.5px; color:#a9e6a0; white-space:pre-wrap; word-break:break-all;
+    max-height:220px; overflow:auto; margin-top:10px;
+  }
+  .copy-btn{
+    margin-top:10px; width:100%; padding:12px; border-radius:8px; border:none;
+    background:var(--sky); color:#fff; font-weight:700; font-size:12px; cursor:pointer;
+  }
+  .copy-btn.copied{ background:var(--grass-dark); }
+
+  .howto{ font-size:10.5px; color:var(--dim); line-height:1.7; margin-top:10px; }
+  .howto b{ color:var(--text); }
+
+  .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:40px 20px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header>
+  <a class="back" href="./index.html">← volver</a>
+  <div class="brand-name">WAIT<b>RADAR</b> · configuración</div>
+</header>
+
+<main id="main">
+  <div class="load-msg">Cargando preferencias actuales…</div>
+</main>
+<div id="saveBar" style="display:none; position:fixed; bottom:0; left:0; right:0; background:var(--grass-dark); color:#fff; text-align:center; padding:12px; font-size:12px; font-weight:700;"></div>
+
+<script>
+const SUPABASE_URL = "https://lrkykstnjdagmmoshcnj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_uBT5wGvI0hxWIJALj1E9rg_MEN6Q8WF";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let prefs = null;
+let saveTimeout = null;
+
+async function init(){
+  const main = document.getElementById("main");
+  const { data, error } = await sb.from("prefs").select("*").eq("id", 1).single();
+
+  if (error || !data){
+    main.innerHTML = `<div class="load-msg">No se pudo conectar con la base de datos.<br>Verificá que exista la fila con id=1 en la tabla prefs.</div>`;
+    console.error(error);
+    return;
+  }
+  prefs = data;
+  render();
+}
+
+function render(){
+  const main = document.getElementById("main");
+  main.innerHTML = `
+    <div class="card">
+      <div class="card-title">Cuándo avisar</div>
+      <div class="row">
+        <div>
+          <div class="row-label">Cuando se abre un cupo</div>
+          <div class="row-desc">Aviso 🟢 apenas hay lugar</div>
+        </div>
+        <div class="switch ${prefs.notify_on_open ? "on" : ""}" data-key="notify_on_open"></div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Cuando se cierra un cupo</div>
+          <div class="row-desc">Aviso 🔴 cuando se vuelve a llenar</div>
+        </div>
+        <div class="switch ${prefs.notify_on_close ? "on" : ""}" data-key="notify_on_close"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Horario de silencio</div>
+      <div class="row">
+        <div>
+          <div class="row-label">Activar horario sin avisos</div>
+          <div class="row-desc">No te molesta en ese rango, aunque el estado cambie</div>
+        </div>
+        <div class="switch ${prefs.quiet_hours_enabled ? "on" : ""}" data-key="quiet_hours_enabled"></div>
+      </div>
+      <div class="row">
+        <div class="row-label">Desde</div>
+        <input type="time" id="quietStart" value="${prefs.quiet_hours_start}">
+      </div>
+      <div class="row">
+        <div class="row-label">Hasta</div>
+        <input type="time" id="quietEnd" value="${prefs.quiet_hours_end}">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Silenciar ahora</div>
+      <div class="mute-btns">
+        <div class="mute-btn" data-hours="4">4 horas</div>
+        <div class="mute-btn" data-hours="12">12 horas</div>
+        <div class="mute-btn" data-hours="24">1 día</div>
+        <div class="mute-btn" data-hours="0" id="unmuteBtn">Quitar silencio</div>
+      </div>
+      <div class="mute-status" id="muteStatus">${muteStatusText()}</div>
+    </div>
+  `;
+
+  main.querySelectorAll(".switch").forEach(sw => {
+    sw.addEventListener("click", () => {
+      const key = sw.dataset.key;
+      prefs[key] = !prefs[key];
+      render();
+      saveToSupabase();
+    });
+  });
+
+  document.getElementById("quietStart").addEventListener("change", (e) => {
+    prefs.quiet_hours_start = e.target.value;
+    saveToSupabase();
+  });
+  document.getElementById("quietEnd").addEventListener("change", (e) => {
+    prefs.quiet_hours_end = e.target.value;
+    saveToSupabase();
+  });
+
+  main.querySelectorAll(".mute-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const hours = parseInt(btn.dataset.hours, 10);
+      if (hours === 0){
+        prefs.muted_until = null;
+      } else {
+        const until = new Date(Date.now() + hours * 3600000);
+        prefs.muted_until = until.toISOString();
+      }
+      render();
+      saveToSupabase();
+    });
+  });
+}
+
+async function saveToSupabase(){
+  const bar = document.getElementById("saveBar");
+  bar.style.display = "block";
+  bar.textContent = "Guardando…";
+
+  const { id, created_at, ...updateFields } = prefs;
+  const { error } = await sb.from("prefs").update(updateFields).eq("id", 1);
+
+  if (error){
+    bar.style.background = "#c0392b";
+    bar.textContent = "No se pudo guardar. Revisá tu conexión.";
+    console.error(error);
+  } else {
+    bar.style.background = "";
+    bar.textContent = "✓ Guardado";
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => { bar.style.display = "none"; }, 1500);
+  }
+}
+
+function muteStatusText(){
+  if (!prefs.muted_until) return "No está silenciado ahora mismo.";
+  const until = new Date(prefs.muted_until);
+  if (until < new Date()) return "No está silenciado ahora mismo.";
+  return `Silenciado hasta ${until.toLocaleString("es")}.`;
+}
+
+init();
+</script>
+</body>
+</html>
