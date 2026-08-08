@@ -1,0 +1,11 @@
+{
+  "notify_on_open": true,
+  "notify_on_close": true,
+
+  "quiet_hours_enabled": false,
+  "quiet_hours_start": "23:00",
+  "quiet_hours_end": "08:00",
+  "utc_offset_hours": -4,
+
+  "muted_until": null
+}
