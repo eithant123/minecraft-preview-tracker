@@ -72,12 +72,17 @@
 
   .chart-title{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
   .chart-title span{ font-size:10px; color:var(--dim); }
-  svg{ width:100%; height:120px; display:block; }
-  .grid-line{ stroke:var(--line); stroke-width:1; }
-  .chart-line{ fill:none; stroke:var(--alert); stroke-width:2; }
-  .chart-fill{ fill:url(#grad); opacity:.5; }
-  .axis-label{ font-size:9px; fill:var(--dim); font-family:'JetBrains Mono', monospace; }
-  .empty-chart{ font-size:10.5px; color:var(--dim); padding:30px 0; text-align:center; }
+  .axis-label{ font-size:9px; color:var(--dim); font-family:'JetBrains Mono', monospace; }
+
+  .timeline{ display:flex; gap:2px; align-items:flex-end; height:56px; margin-bottom:6px; }
+  .tl-bar{ flex:1; height:100%; border-radius:3px; background:var(--line); transition:background .2s; }
+  .tl-bar.open{ background:var(--grass); }
+  .tl-bar.full{ background:var(--alert); }
+
+  .timeline-legend{ display:flex; gap:16px; margin-top:10px; font-size:10px; color:var(--dim); }
+  .timeline-legend .dot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+  .timeline-legend .dot.open{ background:var(--grass); }
+  .timeline-legend .dot.full{ background:var(--alert); }
 
   .bottom-row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
     background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:20px; }
@@ -175,47 +180,25 @@ function fmtDate(iso){
   return d.toLocaleDateString("es", { day: "2-digit", month: "short" });
 }
 
-function buildChart(history, currentStatus, lastChecked){
-  // Construye una línea escalonada últimos 30 días a partir de los cambios registrados.
+function buildTimeline(history, currentStatus, lastChecked){
+  // Devuelve el estado día por día de los últimos 30 días, como barra de segmentos.
   const now = new Date(lastChecked || Date.now());
-  const windowStart = new Date(now.getTime() - 30 * 86400000);
-
   const events = (history || [])
     .map(h => ({ status: h.status, at: new Date(h.changed_at) }))
     .sort((a, b) => a.at - b.at);
 
-  if (events.length === 0){
-    return null;
+  const days = [];
+  for (let i = 29; i >= 0; i--){
+    const dayEnd = new Date(now.getTime() - i * 86400000);
+    // Estado vigente justo antes de que termine ese día
+    let statusThatDay = events.length ? events[0].status : currentStatus;
+    for (const e of events){
+      if (e.at <= dayEnd) statusThatDay = e.status; else break;
+    }
+    if (i === 0) statusThatDay = currentStatus;
+    days.push({ date: dayEnd, status: statusThatDay });
   }
-
-  // Estado al inicio de la ventana de 30 días
-  let stateAtStart = events[0].status;
-  for (const e of events){
-    if (e.at <= windowStart) stateAtStart = e.status; else break;
-  }
-
-  const points = [{ at: windowStart, status: stateAtStart }];
-  for (const e of events){
-    if (e.at > windowStart && e.at <= now) points.push({ at: e.at, status: e.status });
-  }
-  points.push({ at: now, status: currentStatus });
-
-  const totalMs = now - windowStart;
-  const toX = (d) => Math.round(((d - windowStart) / totalMs) * 300);
-  const yFor = (status) => (status === "full" ? 15 : 100);
-
-  // Escalonado: cada punto se mantiene horizontal hasta el siguiente cambio
-  let path = `M0,${yFor(points[0].status)}`;
-  for (let i = 1; i < points.length; i++){
-    const x = toX(points[i].at);
-    const yPrev = yFor(points[i - 1].status);
-    const yNow = yFor(points[i].status);
-    path += ` L${x},${yPrev} L${x},${yNow}`;
-  }
-  const lastX = toX(now);
-  path += ` L${lastX},${yFor(points[points.length - 1].status)}`;
-
-  return { path, windowStart, now };
+  return days;
 }
 
 async function render(){
@@ -256,26 +239,21 @@ async function render(){
     bigSub = "Días sin cupo detectado";
   }
 
-  const chart = buildChart(history, status, lastChecked);
-  const chartHtml = chart ? `
-    <svg viewBox="0 0 300 120" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--alert)" stop-opacity="0.5"/>
-          <stop offset="100%" stop-color="var(--alert)" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <line class="grid-line" x1="0" y1="30" x2="300" y2="30"/>
-      <line class="grid-line" x1="0" y1="60" x2="300" y2="60"/>
-      <line class="grid-line" x1="0" y1="90" x2="300" y2="90"/>
-      <path class="chart-fill" d="${chart.path} L300,120 L0,120 Z"/>
-      <path class="chart-line" d="${chart.path}"/>
-    </svg>
+  const timeline = buildTimeline(history, status, lastChecked);
+  const barsHtml = timeline.map(d =>
+    `<div class="tl-bar ${d.status}" title="${d.date.toLocaleDateString('es', {day:'2-digit', month:'short'})}: ${d.status === 'full' ? 'sin cupo' : 'cupo disponible'}"></div>`
+  ).join("");
+  const chartHtml = `
+    <div class="timeline">${barsHtml}</div>
     <div style="display:flex; justify-content:space-between;">
-      <span class="axis-label">${fmtDate(chart.windowStart)}</span>
-      <span class="axis-label">${fmtDate(chart.now)}</span>
+      <span class="axis-label">${fmtDate(timeline[0].date)}</span>
+      <span class="axis-label">hoy</span>
     </div>
-  ` : `<div class="empty-chart">Aún no hay suficiente historial para graficar (se acumula con cada cambio de estado).</div>`;
+    <div class="timeline-legend">
+      <span><i class="dot full"></i> sin cupo</span>
+      <span><i class="dot open"></i> cupo disponible</span>
+    </div>
+  `;
 
   main.innerHTML = `
     <div class="row">
