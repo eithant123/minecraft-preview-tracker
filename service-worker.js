@@ -1,6 +1,7 @@
-const CACHE_NAME = "waitradar-v1";
+const CACHE_NAME = "waitradar-v2";
 const STATIC_ASSETS = [
   "./index.html",
+  "./settings.html",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
@@ -27,9 +28,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // status.json: siempre intenta traer el dato más fresco de la red.
-  // Si no hay internet, cae al último que se guardó en caché.
-  if (url.pathname.endsWith("status.json")) {
+  // status.json y las páginas HTML: siempre intenta traer lo más nuevo de
+  // la red primero. Si no hay internet, ahí sí cae a la última copia guardada.
+  const isHTML = url.pathname.endsWith(".html") || url.pathname.endsWith("/");
+  if (url.pathname.endsWith("status.json") || isHTML) {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
@@ -42,7 +44,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Todo lo demás (html, manifest, íconos): caché primero, red como respaldo.
+  // Íconos y manifest: caché primero, red como respaldo (no cambian seguido).
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
