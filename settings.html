@@ -70,6 +70,22 @@
   .howto b{ color:var(--text); }
 
   .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:40px 20px; }
+
+  .login-input{
+    width:100%; background:var(--night); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:12px; font-family:'JetBrains Mono', monospace; font-size:13px;
+    margin-bottom:10px;
+  }
+  .login-btn{
+    width:100%; padding:12px; border-radius:8px; border:none;
+    background:var(--grass-dark); color:#fff; font-weight:700; font-size:12px; cursor:pointer;
+  }
+  .login-error{ font-size:10.5px; color:var(--alert); margin-top:8px; }
+  .logout-btn{
+    font-size:10.5px; color:var(--dim); background:none; border:none; cursor:pointer;
+    text-decoration:underline; padding:0;
+  }
+  .admin-badge{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:10.5px; color:var(--dim); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -92,9 +108,50 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let prefs = null;
 let saveTimeout = null;
+let session = null;
 
 async function init(){
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+
+  sb.auth.onAuthStateChange((_event, newSession) => {
+    session = newSession;
+    session ? loadPrefsAndRender() : renderLogin();
+  });
+
+  if (session){
+    loadPrefsAndRender();
+  } else {
+    renderLogin();
+  }
+}
+
+function renderLogin(){
   const main = document.getElementById("main");
+  main.innerHTML = `
+    <div class="card">
+      <div class="card-title">Iniciar sesión de administrador</div>
+      <input class="login-input" type="email" id="loginEmail" placeholder="tu email" autocapitalize="off">
+      <input class="login-input" type="password" id="loginPass" placeholder="contraseña">
+      <button class="login-btn" id="loginBtn">Entrar</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  `;
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPass").value;
+    const errBox = document.getElementById("loginError");
+    errBox.textContent = "";
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) errBox.textContent = "Email o contraseña incorrectos.";
+  });
+}
+
+async function loadPrefsAndRender(){
+  const main = document.getElementById("main");
+  main.innerHTML = `<div class="load-msg">Cargando preferencias actuales…</div>`;
+
   const { data, error } = await sb.from("prefs").select("*").eq("id", 1).single();
 
   if (error || !data){
@@ -109,6 +166,11 @@ async function init(){
 function render(){
   const main = document.getElementById("main");
   main.innerHTML = `
+    <div class="admin-badge">
+      <span>Conectado como ${session.user.email}</span>
+      <button class="logout-btn" id="logoutBtn">Cerrar sesión</button>
+    </div>
+
     <div class="card">
       <div class="card-title">Cuándo avisar</div>
       <div class="row">
@@ -157,6 +219,10 @@ function render(){
       <div class="mute-status" id="muteStatus">${muteStatusText()}</div>
     </div>
   `;
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await sb.auth.signOut();
+  });
 
   main.querySelectorAll(".switch").forEach(sw => {
     sw.addEventListener("click", () => {
