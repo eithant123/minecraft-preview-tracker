@@ -98,10 +98,11 @@
   .tip-text{ font-size:11.5px; color:var(--dim); line-height:1.6; margin-bottom:14px; }
   .tip-buttons{ display:flex; gap:10px; flex-wrap:wrap; }
   .tip-btn{
-    flex:1; min-width:140px; text-align:center; font-size:11.5px; font-weight:700;
-    padding:10px 14px; border-radius:8px; cursor:pointer;
+    flex:1; min-width:76px; text-align:center; font-size:12.5px; font-weight:700;
+    padding:12px 8px; border-radius:8px; cursor:pointer;
     background:rgba(232,185,62,.12); color:var(--gold); border:1px solid rgba(232,185,62,.4);
     transition: background .2s;
+    display:block; text-decoration:none;
   }
   .tip-btn:active{ background:rgba(232,185,62,.25); }
 
@@ -295,8 +296,10 @@ async function render(){
         Si te sirvió, una propina ayuda a seguir mejorando el diseño y agregando más juegos. Nada es obligatorio 🙂
       </div>
       <div class="tip-buttons">
-        <div class="tip-btn" onclick="alert('Próximamente: Telegram Stars')">⭐ Telegram Stars</div>
-        <div class="tip-btn" onclick="alert('Próximamente: PayPal')">💛 PayPal</div>
+        <a class="tip-btn" href="https://paypal.me/GloriaRivera907380/1" target="_blank" rel="noopener">☕ $1</a>
+        <a class="tip-btn" href="https://paypal.me/GloriaRivera907380/3" target="_blank" rel="noopener">🍕 $3</a>
+        <a class="tip-btn" href="https://paypal.me/GloriaRivera907380/5" target="_blank" rel="noopener">🎉 $5</a>
+        <a class="tip-btn" href="https://paypal.me/GloriaRivera907380" target="_blank" rel="noopener">💙 Otro monto</a>
       </div>
     </div>
 
