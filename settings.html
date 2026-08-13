@@ -42,7 +42,7 @@
   .switch::after{ content:""; position:absolute; top:2px; left:2px; width:18px;height:18px; border-radius:50%; background:#8b97a6; transition:left .2s, background .2s; }
   .switch.on::after{ left:20px; background:#fff; }
 
-  input[type=time], select{
+  input[type=time]{
     background:var(--night); color:var(--text); border:1px solid var(--line);
     border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;
   }
@@ -52,42 +52,28 @@
     font-size:11px; padding:8px 12px; border-radius:8px; cursor:pointer;
     background:var(--night); border:1px solid var(--line); color:var(--text);
   }
-  .mute-btn.active{ background:rgba(224,69,58,.15); border-color:var(--alert); color:#ff9a90; }
   .mute-status{ font-size:10.5px; color:var(--dim); margin-top:10px; }
 
-  .output-box{
-    background:var(--night); border:1px solid var(--line); border-radius:8px;
-    padding:12px; font-size:10.5px; color:#a9e6a0; white-space:pre-wrap; word-break:break-all;
-    max-height:220px; overflow:auto; margin-top:10px;
-  }
-  .copy-btn{
-    margin-top:10px; width:100%; padding:12px; border-radius:8px; border:none;
-    background:var(--sky); color:#fff; font-weight:700; font-size:12px; cursor:pointer;
-  }
-  .copy-btn.copied{ background:var(--grass-dark); }
-
-  .howto{ font-size:10.5px; color:var(--dim); line-height:1.7; margin-top:10px; }
-  .howto b{ color:var(--text); }
-
-  .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:40px 20px; }
-
-  .login-input{
-    width:100%; background:var(--night); color:var(--text); border:1px solid var(--line);
-    border-radius:8px; padding:12px; font-family:'JetBrains Mono', monospace; font-size:13px;
-    margin-bottom:10px;
-  }
-  .login-btn{
-    width:100%; padding:12px; border-radius:8px; border:none;
-    background:var(--grass-dark); color:#fff; font-weight:700; font-size:12px; cursor:pointer;
-  }
-  .login-error{ font-size:10.5px; color:var(--alert); margin-top:8px; }
+  .admin-badge{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:10.5px; color:var(--dim); }
+  .admin-badge .who{ display:flex; align-items:center; gap:8px; }
+  .admin-badge img{ width:24px; height:24px; border-radius:50%; }
   .logout-btn{
     font-size:10.5px; color:var(--dim); background:none; border:none; cursor:pointer;
     text-decoration:underline; padding:0;
   }
-  .admin-badge{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:10.5px; color:var(--dim); }
+
+  .premium-tag{
+    display:inline-block; font-size:9.5px; padding:3px 8px; border-radius:20px;
+    background:rgba(232,185,62,.12); color:var(--gold); border:1px solid rgba(232,185,62,.4);
+  }
+  .free-note{ font-size:10.5px; color:var(--dim); margin-top:10px; line-height:1.5; }
+
+  .login-card{ text-align:center; padding:30px 20px; }
+  .login-card p{ font-size:12px; color:var(--dim); line-height:1.6; margin-bottom:20px; }
+  #telegramWidget{ display:flex; justify-content:center; }
+
+  .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:40px 20px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -97,29 +83,23 @@
 </header>
 
 <main id="main">
-  <div class="load-msg">Cargando preferencias actuales…</div>
+  <div class="load-msg">Cargando…</div>
 </main>
-<div id="saveBar" style="display:none; position:fixed; bottom:0; left:0; right:0; background:var(--grass-dark); color:#fff; text-align:center; padding:12px; font-size:12px; font-weight:700;"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = "https://lrkykstnjdagmmoshcnj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_uBT5wGvI0hxWIJALj1E9rg_MEN6Q8WF";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const BOT_USERNAME = "EithanCupoBot";
 
-let prefs = null;
-let saveTimeout = null;
-let session = null;
+let user = null;   // datos de Telegram (id, first_name, username, photo_url)
+let prefs = null;  // fila de user_prefs para ese usuario
 
-async function init(){
-  const { data } = await sb.auth.getSession();
-  session = data.session;
-
-  sb.auth.onAuthStateChange((_event, newSession) => {
-    session = newSession;
-    session ? loadPrefsAndRender() : renderLogin();
-  });
-
-  if (session){
+function init(){
+  const saved = localStorage.getItem("waitradar_tg_user");
+  if (saved){
+    user = JSON.parse(saved);
     loadPrefsAndRender();
   } else {
     renderLogin();
@@ -129,33 +109,49 @@ async function init(){
 function renderLogin(){
   const main = document.getElementById("main");
   main.innerHTML = `
-    <div class="card">
-      <div class="card-title">Iniciar sesión de administrador</div>
-      <input class="login-input" type="email" id="loginEmail" placeholder="tu email" autocapitalize="off">
-      <input class="login-input" type="password" id="loginPass" placeholder="contraseña">
-      <button class="login-btn" id="loginBtn">Entrar</button>
-      <div class="login-error" id="loginError"></div>
+    <div class="card login-card">
+      <div class="card-title">Iniciar sesión</div>
+      <p>Inicia sesión con tu cuenta de Telegram para ver y ajustar tus propias notificaciones de WaitRadar.</p>
+      <div id="telegramWidget"></div>
     </div>
   `;
-  document.getElementById("loginBtn").addEventListener("click", async () => {
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPass").value;
-    const errBox = document.getElementById("loginError");
-    errBox.textContent = "";
-
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) errBox.textContent = "Email o contraseña incorrectos.";
-  });
+  const script = document.createElement("script");
+  script.src = "https://telegram.org/js/telegram-widget.js?22";
+  script.setAttribute("data-telegram-login", BOT_USERNAME);
+  script.setAttribute("data-size", "large");
+  script.setAttribute("data-radius", "8");
+  script.setAttribute("data-onauth", "onTelegramAuth(user)");
+  script.setAttribute("data-request-access", "write");
+  script.async = true;
+  document.getElementById("telegramWidget").appendChild(script);
 }
+
+// Llamado por el widget de Telegram al iniciar sesión
+window.onTelegramAuth = function(tgUser){
+  user = tgUser;
+  localStorage.setItem("waitradar_tg_user", JSON.stringify(user));
+  loadPrefsAndRender();
+};
 
 async function loadPrefsAndRender(){
   const main = document.getElementById("main");
-  main.innerHTML = `<div class="load-msg">Cargando preferencias actuales…</div>`;
+  main.innerHTML = `<div class="load-msg">Cargando tu configuración…</div>`;
 
-  const { data, error } = await sb.from("prefs").select("*").eq("id", 1).single();
+  let { data, error } = await sb.from("user_prefs").select("*").eq("telegram_id", user.id).maybeSingle();
+
+  if (!data){
+    // primera vez que este usuario inicia sesión: crear su fila
+    const insertRes = await sb.from("user_prefs").insert({
+      telegram_id: user.id,
+      telegram_username: user.username || null,
+      telegram_first_name: user.first_name || null
+    }).select().single();
+    data = insertRes.data;
+    error = insertRes.error;
+  }
 
   if (error || !data){
-    main.innerHTML = `<div class="load-msg">No se pudo conectar con la base de datos.<br>Verificá que exista la fila con id=1 en la tabla prefs.</div>`;
+    main.innerHTML = `<div class="load-msg">No se pudo conectar con la base de datos.<br>Intenta de nuevo en un momento.</div>`;
     console.error(error);
     return;
   }
@@ -167,12 +163,25 @@ function render(){
   const main = document.getElementById("main");
   main.innerHTML = `
     <div class="admin-badge">
-      <span>Conectado como ${session.user.email}</span>
+      <div class="who">
+        ${user.photo_url ? `<img src="${user.photo_url}">` : ""}
+        <span>${user.first_name}${user.username ? " (@" + user.username + ")" : ""}</span>
+      </div>
       <button class="logout-btn" id="logoutBtn">Cerrar sesión</button>
     </div>
 
     <div class="card">
-      <div class="card-title">Cuándo avisar</div>
+      <div class="card-title">
+        Tu plan
+        ${prefs.is_premium ? `<span class="premium-tag">⭐ premium</span>` : ""}
+      </div>
+      ${prefs.is_premium
+        ? `<div class="free-note">Tienes premium — más adelante aquí vas a poder elegir avisos por WhatsApp/SMS además de Telegram.</div>`
+        : `<div class="free-note">Plan gratis: avisos por Telegram cada 15 min. El plan premium (revisión cada 5 min + más canales) llega pronto.</div>`}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cuándo avisarte</div>
       <div class="row">
         <div>
           <div class="row-label">Cuando se abre un cupo</div>
@@ -194,7 +203,7 @@ function render(){
       <div class="row">
         <div>
           <div class="row-label">Activar horario sin avisos</div>
-          <div class="row-desc">No te molesta en ese rango, aunque el estado cambie</div>
+          <div class="row-desc">No te avisa en ese rango, aunque el estado cambie</div>
         </div>
         <div class="switch ${prefs.quiet_hours_enabled ? "on" : ""}" data-key="quiet_hours_enabled"></div>
       </div>
@@ -214,14 +223,16 @@ function render(){
         <div class="mute-btn" data-hours="4">4 horas</div>
         <div class="mute-btn" data-hours="12">12 horas</div>
         <div class="mute-btn" data-hours="24">1 día</div>
-        <div class="mute-btn" data-hours="0" id="unmuteBtn">Quitar silencio</div>
+        <div class="mute-btn" data-hours="0">Quitar silencio</div>
       </div>
       <div class="mute-status" id="muteStatus">${muteStatusText()}</div>
     </div>
   `;
 
-  document.getElementById("logoutBtn").addEventListener("click", async () => {
-    await sb.auth.signOut();
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    localStorage.removeItem("waitradar_tg_user");
+    user = null; prefs = null;
+    renderLogin();
   });
 
   main.querySelectorAll(".switch").forEach(sw => {
@@ -229,52 +240,33 @@ function render(){
       const key = sw.dataset.key;
       prefs[key] = !prefs[key];
       render();
-      saveToSupabase();
+      savePrefs();
     });
   });
 
   document.getElementById("quietStart").addEventListener("change", (e) => {
     prefs.quiet_hours_start = e.target.value;
-    saveToSupabase();
+    savePrefs();
   });
   document.getElementById("quietEnd").addEventListener("change", (e) => {
     prefs.quiet_hours_end = e.target.value;
-    saveToSupabase();
+    savePrefs();
   });
 
   main.querySelectorAll(".mute-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const hours = parseInt(btn.dataset.hours, 10);
-      if (hours === 0){
-        prefs.muted_until = null;
-      } else {
-        const until = new Date(Date.now() + hours * 3600000);
-        prefs.muted_until = until.toISOString();
-      }
+      prefs.muted_until = hours === 0 ? null : new Date(Date.now() + hours * 3600000).toISOString();
       render();
-      saveToSupabase();
+      savePrefs();
     });
   });
 }
 
-async function saveToSupabase(){
-  const bar = document.getElementById("saveBar");
-  bar.style.display = "block";
-  bar.textContent = "Guardando…";
-
-  const { id, created_at, ...updateFields } = prefs;
-  const { error } = await sb.from("prefs").update(updateFields).eq("id", 1);
-
-  if (error){
-    bar.style.background = "#c0392b";
-    bar.textContent = "No se pudo guardar. Revisá tu conexión.";
-    console.error(error);
-  } else {
-    bar.style.background = "";
-    bar.textContent = "✓ Guardado";
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => { bar.style.display = "none"; }, 1500);
-  }
+async function savePrefs(){
+  const { telegram_id, created_at, ...fields } = prefs;
+  const { error } = await sb.from("user_prefs").update(fields).eq("telegram_id", user.id);
+  if (error) console.error("Error guardando:", error);
 }
 
 function muteStatusText(){

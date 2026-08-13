@@ -1,15 +1,17 @@
 """
 check.py — Revisa si hay cupos disponibles en el beta de Minecraft Preview
-(TestFlight, iOS) y avisa por Telegram si el estado cambió.
+(TestFlight, iOS) y avisa por Telegram a cada usuario registrado si el
+estado cambió, respetando las preferencias propias de cada uno.
 
 Se ejecuta automáticamente por GitHub Actions cada 15 minutos (ver
 .github/workflows/check.yml). No necesita laptop ni servidor propio.
 
-Respeta las preferencias guardadas en prefs.json:
+Cada usuario se registra iniciando sesión con Telegram en settings.html,
+lo que crea su fila en la tabla user_prefs (Supabase). Por cada uno se
+respeta:
   - notify_on_open / notify_on_close: qué cambios de estado avisan
   - quiet_hours_enabled/start/end/utc_offset_hours: horario sin avisos
-  - muted_until: silencio temporal (ISO datetime UTC) — mientras no pase esa
-    fecha, no se manda ningún aviso aunque el estado cambie
+  - muted_until: silencio temporal (ISO datetime UTC)
 """
 
 import json
@@ -65,30 +67,27 @@ def save_status(data: dict) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def load_prefs() -> dict:
-    """Lee las preferencias desde Supabase (tabla prefs, fila id=1).
-    Si falla la conexión, usa los defaults para no dejar de avisar por eso.
+def load_all_users() -> list:
+    """Trae todos los usuarios registrados desde Supabase (tabla user_prefs).
+    Cada uno con su propio telegram_id y sus propias preferencias.
     """
-    prefs = dict(DEFAULT_PREFS)
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
     if not url or not key:
-        print("Faltan SUPABASE_URL o SUPABASE_KEY, uso defaults.", file=sys.stderr)
-        return prefs
+        print("Faltan SUPABASE_URL o SUPABASE_KEY, no se puede avisar a nadie.", file=sys.stderr)
+        return []
     try:
         resp = requests.get(
-            f"{url}/rest/v1/prefs",
-            params={"id": "eq.1", "select": "*"},
+            f"{url}/rest/v1/user_prefs",
+            params={"select": "*"},
             headers={"apikey": key, "Authorization": f"Bearer {key}"},
             timeout=10,
         )
         resp.raise_for_status()
-        rows = resp.json()
-        if rows:
-            prefs.update(rows[0])
+        return resp.json()
     except Exception as e:
-        print(f"No se pudo leer prefs de Supabase, uso defaults: {e}", file=sys.stderr)
-    return prefs
+        print(f"No se pudo leer user_prefs de Supabase: {e}", file=sys.stderr)
+        return []
 
 
 def is_muted(prefs: dict, now_utc: datetime) -> bool:
@@ -120,14 +119,16 @@ def is_quiet_hours(prefs: dict, now_utc: datetime) -> bool:
     return local_now >= start or local_now < end
 
 
-def send_telegram(message: str) -> None:
+def send_telegram(chat_id, message: str) -> None:
     token = os.environ.get("TELEGRAM_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
-        print("Faltan TELEGRAM_TOKEN o TELEGRAM_CHAT_ID, no se envía aviso.")
+        print("Falta TELEGRAM_TOKEN o chat_id, no se envía aviso.")
         return
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    requests.post(url, data={"chat_id": chat_id, "text": message}, timeout=15)
+    try:
+        requests.post(url, data={"chat_id": chat_id, "text": message}, timeout=15)
+    except Exception as e:
+        print(f"No se pudo avisar a {chat_id}: {e}", file=sys.stderr)
 
 
 def main() -> None:
@@ -150,24 +151,35 @@ def main() -> None:
         data["history"].append({"status": current_status, "changed_at": now_iso})
         print(f"Estado cambió: {previous_status} -> {current_status}")
 
-        prefs = load_prefs()
+        users = load_all_users()
+        print(f"Avisando a {len(users)} usuario(s) registrado(s)...")
 
-        if is_muted(prefs, now):
-            print("Silenciado manualmente (muted_until) — no se envía aviso.")
-        elif is_quiet_hours(prefs, now):
-            print("Dentro del horario de silencio — no se envía aviso.")
-        elif current_status == "open" and not prefs.get("notify_on_open", True):
-            print("notify_on_open está desactivado — no se envía aviso.")
-        elif current_status == "full" and not prefs.get("notify_on_close", True):
-            print("notify_on_close está desactivado — no se envía aviso.")
-        else:
+        for u in users:
+            prefs = dict(DEFAULT_PREFS)
+            prefs.update(u)
+            chat_id = u.get("telegram_id")
+
+            if is_muted(prefs, now):
+                print(f"{chat_id}: silenciado manualmente, no se avisa.")
+                continue
+            if is_quiet_hours(prefs, now):
+                print(f"{chat_id}: en horario de silencio, no se avisa.")
+                continue
+            if current_status == "open" and not prefs.get("notify_on_open", True):
+                print(f"{chat_id}: notify_on_open desactivado, no se avisa.")
+                continue
+            if current_status == "full" and not prefs.get("notify_on_close", True):
+                print(f"{chat_id}: notify_on_close desactivado, no se avisa.")
+                continue
+
             if current_status == "open":
                 send_telegram(
+                    chat_id,
                     "🟢 ¡Hay cupos en Minecraft Preview (TestFlight)! "
                     f"Entra ya: {TESTFLIGHT_URL}"
                 )
             else:
-                send_telegram("🔴 El beta de Minecraft Preview se llenó de nuevo.")
+                send_telegram(chat_id, "🔴 El beta de Minecraft Preview se llenó de nuevo.")
     else:
         print(f"Sin cambios. Estado actual: {current_status}")
 
