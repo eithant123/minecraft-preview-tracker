@@ -67,6 +67,8 @@
   .status-headline{ font-size:16px; font-weight:700; }
   .status-headline.full{ color:var(--alert); }
   .status-headline.open{ color:var(--grass); }
+  .status-headline.pulse{ animation: textPulse 2s ease-in-out infinite; }
+  @keyframes textPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
   .status-desc{ font-size:11px; color:var(--dim); line-height:1.5; }
   .status-desc a{ color:var(--sky); }
 
@@ -89,9 +91,9 @@
   .bell{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--dim); }
   .bell a{ color:var(--sky); text-decoration:none; }
   .share-btn{
-    display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+    display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700;
     background:rgba(74,144,217,.15); color:var(--sky); border:1px solid rgba(74,144,217,.4);
-    padding:8px 14px; border-radius:8px; cursor:pointer;
+    padding:12px 18px; border-radius:8px; cursor:pointer;
   }
 
   .tip-card{ margin-bottom:20px; }
@@ -197,6 +199,18 @@ function fmtDate(iso){
   return d.toLocaleDateString("es", { day: "2-digit", month: "short" });
 }
 
+function fmtExact(iso){
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtExactPlus15(iso){
+  if (!iso) return "—";
+  const d = new Date(new Date(iso).getTime() + 15 * 60000);
+  return d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+}
+
 function buildTimeline(history, currentStatus, lastChecked){
   // Devuelve el estado día por día de los últimos 30 días, como barra de segmentos.
   const now = new Date(lastChecked || Date.now());
@@ -253,7 +267,7 @@ async function render(){
     bigSub = "Días con cupo disponible — ¡entrá ya!";
   } else {
     bigNum = lastFullEntry ? daysSince(lastFullEntry.changed_at) : 0;
-    bigSub = "Días sin cupo detectado";
+    bigSub = "Racha actual sin cupo (desde el último cierre)";
   }
 
   const timeline = buildTimeline(history, status, lastChecked);
@@ -289,13 +303,14 @@ async function render(){
         <div class="card-label">Minecraft Preview</div>
         <div class="status-pill">
           <span class="status-dot ${isOpen ? "open" : "full"}"></span>
-          <span class="status-headline ${isOpen ? "open" : "full"}">${isOpen ? "Cupo disponible" : "Sin cupos"}</span>
+          <span class="status-headline ${isOpen ? "open" : "full"}${!isOpen ? " pulse" : ""}">${isOpen ? "Cupo disponible" : "Sin cupos"}</span>
         </div>
         <div class="status-desc">
           ${isOpen
             ? `Hay cupo ahora mismo. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Entrá al beta</a>.`
             : "No hay cupos disponibles en este momento."}
-          <br><br>Próxima revisión: en ~15 min.
+          <br><br>Última revisión: ${fmtExact(lastChecked)}
+          <br>Próxima revisión: ~${fmtExactPlus15(lastChecked)}
         </div>
       </div>
     </div>
