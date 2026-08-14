@@ -54,9 +54,16 @@
   }
   .mute-status{ font-size:10.5px; color:var(--dim); margin-top:10px; }
 
-  .admin-badge{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:10.5px; color:var(--dim); }
-  .admin-badge .who{ display:flex; align-items:center; gap:8px; }
-  .admin-badge img{ width:24px; height:24px; border-radius:50%; }
+  .profile-card{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .profile-card img{ width:48px; height:48px; border-radius:50%; border:2px solid var(--line); flex-shrink:0; }
+  .profile-card .avatar-fallback{
+    width:48px; height:48px; border-radius:50%; flex-shrink:0;
+    background:rgba(74,144,217,.15); border:2px solid rgba(74,144,217,.4);
+    display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--sky); font-weight:700;
+  }
+  .profile-card .name{ font-size:14px; font-weight:700; color:#fff; }
+  .profile-card .handle{ font-size:11px; color:var(--dim); margin-top:2px; }
+  .profile-card .logout-btn{ margin-left:auto; }
   .logout-btn{
     font-size:10.5px; color:var(--dim); background:none; border:none; cursor:pointer;
     text-decoration:underline; padding:0;
@@ -144,7 +151,7 @@ async function loadPrefsAndRender(){
     const insertRes = await sb.from("user_prefs").insert({
       telegram_id: user.id,
       telegram_username: user.username || null,
-      telegram_first_name: user.first_name || null
+      telegram_first_name: (user.first_name || "") + (user.last_name ? " " + user.last_name : "") || null
     }).select().single();
     data = insertRes.data;
     error = insertRes.error;
@@ -162,10 +169,13 @@ async function loadPrefsAndRender(){
 function render(){
   const main = document.getElementById("main");
   main.innerHTML = `
-    <div class="admin-badge">
-      <div class="who">
-        ${user.photo_url ? `<img src="${user.photo_url}">` : ""}
-        <span>${user.first_name}${user.username ? " (@" + user.username + ")" : ""}</span>
+    <div class="profile-card">
+      ${user.photo_url
+        ? `<img src="${user.photo_url}" alt="">`
+        : `<div class="avatar-fallback">${(user.first_name || "?")[0].toUpperCase()}</div>`}
+      <div>
+        <div class="name">${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}</div>
+        <div class="handle">${user.username ? "@" + user.username : "sin @usuario"}</div>
       </div>
       <button class="logout-btn" id="logoutBtn">Cerrar sesión</button>
     </div>
