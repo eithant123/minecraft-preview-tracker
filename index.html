@@ -115,6 +115,17 @@
     background:var(--sky); color:#fff; font-weight:700; font-size:12px;
     padding:12px; border-radius:8px;
   }
+  .discord-card{ background:linear-gradient(160deg, rgba(88,101,242,.12), var(--panel)); border-color:rgba(88,101,242,.35); margin-bottom:20px; }
+  .discord-avatar{
+    width:42px; height:42px; border-radius:50%; flex-shrink:0;
+    background:rgba(88,101,242,.15); border:1px solid rgba(88,101,242,.4);
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+  }
+  .discord-btn{
+    display:block; text-align:center; text-decoration:none;
+    background:#5865F2; color:#fff; font-weight:700; font-size:12px;
+    padding:12px; border-radius:8px;
+  }
   .tip-btn{
     flex:1; min-width:76px; text-align:center; font-size:12.5px; font-weight:700;
     padding:12px 8px; border-radius:8px; cursor:pointer;
@@ -348,6 +359,17 @@ async function render(){
         Si te gustó, me encantaría que te unas — crezcamos juntos como una familia gigante 🦈
       </div>
       <a class="yt-btn" href="https://youtube.com/@kuroshark-n1c" target="_blank" rel="noopener">▶ Suscríbete en YouTube</a>
+    </div>
+
+    <div class="card discord-card">
+      <div class="yt-header">
+        <div class="discord-avatar">💬</div>
+        <div>
+          <div class="yt-title">Únete a la comunidad</div>
+          <div class="yt-sub">ideas, bugs, y hablar de WaitRadar con más gente</div>
+        </div>
+      </div>
+      <a class="discord-btn" href="https://discord.gg/yPVpBv76C" target="_blank" rel="noopener">💬 Entrar al Discord</a>
     </div>
 
     <div class="roadmap-note">más apps y juegos próximamente — por ahora WaitRadar sigue de cerca Minecraft Preview</div>
