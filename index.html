@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" id="htmlRoot">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,6 +46,14 @@
   .live-dot.down{ background:var(--alert); box-shadow:0 0 8px var(--alert); }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.4;} }
   .updated{ font-size:10.5px; color:var(--dim); }
+
+  .header-right{ display:flex; align-items:center; gap:12px; }
+  .lang-switch{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:2px; }
+  .lang-btn{
+    font-size:10.5px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;
+    color:var(--dim); background:transparent; border:none; font-family:'JetBrains Mono', monospace;
+  }
+  .lang-btn.active{ background:var(--grass-dark); color:#fff; }
 
   main{ width:100%; max-width:900px; padding:20px; }
 
@@ -164,39 +172,173 @@
       <div class="blocks"><span></span><span></span><span></span></div>
       <div class="brand-name">WAIT<b>RADAR</b></div>
     </div>
-    <div class="live"><span class="live-dot" id="liveDot"></span><span id="liveLabel">Cargando estado…</span></div>
-    <a href="./settings.html" style="color:var(--dim); text-decoration:none; font-size:16px;" title="Configuración">⚙️</a>
+    <div class="live"><span class="live-dot" id="liveDot"></span><span id="liveLabel">…</span></div>
+    <div class="header-right">
+      <div class="lang-switch">
+        <button class="lang-btn" id="langEs">ES</button>
+        <button class="lang-btn" id="langEn">EN</button>
+      </div>
+      <a href="./settings.html" style="color:var(--dim); text-decoration:none; font-size:16px;" id="settingsLink">⚙️</a>
+    </div>
     <div class="updated" id="updatedLabel"></div>
   </header>
 
   <div class="install-bar" id="installBar">
-    <span>📲 Instalá WaitRadar como app en tu celular</span>
-    <button class="install-btn" id="installBtn">Instalar</button>
+    <span id="installText">📲</span>
+    <button class="install-btn" id="installBtn"></button>
     <span class="install-dismiss" id="installDismiss">✕</span>
   </div>
 
   <main id="main">
-    <div class="load-msg" id="loadMsg">Cargando datos de status.json…</div>
+    <div class="load-msg" id="loadMsg">…</div>
   </main>
 
-  <footer>
-    Datos de <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · revisado automáticamente cada 15 min ·
-    <a href="https://t.me/EithanCupoBot" target="_blank" rel="noopener">Únete al bot de Telegram</a>
-  </footer>
+  <footer id="footerText"></footer>
 
 <script>
 const STATUS_URL = "./status.json";
 
+// ---------- Traducciones ----------
+const I18N = {
+  es: {
+    loading_status: "Cargando estado…",
+    loading_data: "Cargando datos de status.json…",
+    settings_title: "Configuración",
+    error_loading: (msg) => `No se pudo cargar el estado (${msg}).<br>Verificá que status.json esté publicado junto a esta página.`,
+    no_connection: "Sin conexión con los datos",
+    live_now: "Estado en tiempo real",
+    updated: (rel) => `Actualizado ${rel}`,
+    days_open_label: "Días con cupo",
+    days_full_label: "Días sin cupo",
+    days_open_sub: "Días con cupo disponible — ¡entrá ya!",
+    days_full_sub: "Racha actual sin cupo (desde el último cierre)",
+    chart_title: "ACTIVIDAD DE CUPOS · ÚLTIMOS 30 DÍAS",
+    today: "hoy",
+    legend_full: "sin cupo",
+    legend_open: "cupo disponible",
+    minecraft_preview: "Minecraft Preview",
+    status_open: "Cupo disponible",
+    status_full: "Sin cupos",
+    desc_open: `Hay cupo ahora mismo. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Entrá al beta</a>.`,
+    desc_full: "No hay cupos disponibles en este momento.",
+    last_check: "Última revisión:",
+    next_check: "Próxima revisión: ~",
+    bell_text: (link) => `🔔 Notificaciones gratis vía <a href="${link}" target="_blank" rel="noopener">Telegram</a>`,
+    share_btn: "↗ Compartir estado",
+    share_text_open: "Hay cupo en Minecraft Preview ahora",
+    share_text_full: "Estado del beta de Minecraft Preview",
+    share_fallback: "Copiá el link de esta página para compartir: ",
+    support_title: "Apoya el proyecto",
+    support_text: "Este sitio y el bot son gratis y los mantengo yo solo, en mi tiempo libre. Si te sirvió, una propina ayuda a seguir mejorando el diseño y agregando más juegos. Nada es obligatorio 🙂",
+    other_amount: "💙 Otro monto",
+    paypal_note: "El pago se procesa a nombre de Gloria Rivera (administradora de pagos del proyecto) — es correcto, no te preocupes.",
+    yt_title: "Hola, soy KuroShark",
+    yt_sub: "creador de contenido — animaciones de Minecraft y FNF",
+    yt_text: "WaitRadar es un proyecto chiquito que armé solo, igual que mi canal. Si te gustó, me encantaría que te unas — crezcamos juntos como una familia gigante 🦈",
+    yt_btn: "▶ Suscríbete en YouTube",
+    discord_title: "Únete a la comunidad",
+    discord_sub: "ideas, bugs, y hablar de WaitRadar con más gente",
+    discord_btn: "💬 Entrar al Discord",
+    roadmap: "más apps y juegos próximamente — por ahora WaitRadar sigue de cerca Minecraft Preview",
+    footer: (link) => `Datos de <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · revisado automáticamente cada 15 min · <a href="${link}" target="_blank" rel="noopener">Únete al bot de Telegram</a>`,
+    install_text: "📲 Instalá WaitRadar como app en tu celular",
+    install_btn: "Instalar",
+    install_ios: `📲 En iPhone: tocá <b>Compartir</b> ↑ y luego <b>"Agregar a pantalla de inicio"</b>`,
+    rel_seconds: "hace segundos",
+    rel_min: (n) => `hace ${n} min`,
+    rel_hr: (n) => `hace ${n} h`,
+    rel_day: (n) => `hace ${n} día${n === 1 ? "" : "s"}`,
+    locale: "es"
+  },
+  en: {
+    loading_status: "Loading status…",
+    loading_data: "Loading status.json…",
+    settings_title: "Settings",
+    error_loading: (msg) => `Couldn't load status (${msg}).<br>Check that status.json is published alongside this page.`,
+    no_connection: "No connection to data",
+    live_now: "Live status",
+    updated: (rel) => `Updated ${rel}`,
+    days_open_label: "Days with a slot",
+    days_full_label: "Days without a slot",
+    days_open_sub: "Days with a slot available — grab it now!",
+    days_full_sub: "Current streak without a slot (since last close)",
+    chart_title: "SLOT ACTIVITY · LAST 30 DAYS",
+    today: "today",
+    legend_full: "no slot",
+    legend_open: "slot available",
+    minecraft_preview: "Minecraft Preview",
+    status_open: "Slot available",
+    status_full: "No slots",
+    desc_open: `There's a slot open right now. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Join the beta</a>.`,
+    desc_full: "No slots available right now.",
+    last_check: "Last checked:",
+    next_check: "Next check: ~",
+    bell_text: (link) => `🔔 Free notifications via <a href="${link}" target="_blank" rel="noopener">Telegram</a>`,
+    share_btn: "↗ Share status",
+    share_text_open: "There's a slot in Minecraft Preview right now",
+    share_text_full: "Minecraft Preview beta status",
+    share_fallback: "Copy this page's link to share: ",
+    support_title: "Support the project",
+    support_text: "This site and bot are free and I maintain them alone, in my free time. If it helped you, a tip helps keep improving the design and adding more games. Nothing is required 🙂",
+    other_amount: "💙 Other amount",
+    paypal_note: "Payment is processed under the name Gloria Rivera (project payment admin) — that's correct, don't worry.",
+    yt_title: "Hi, I'm KuroShark",
+    yt_sub: "content creator — Minecraft and FNF animations",
+    yt_text: "WaitRadar is a small project I built solo, just like my channel. If you liked it, I'd love for you to join — let's grow together as one giant family 🦈",
+    yt_btn: "▶ Subscribe on YouTube",
+    discord_title: "Join the community",
+    discord_sub: "ideas, bugs, and chat about WaitRadar with more people",
+    discord_btn: "💬 Join the Discord",
+    roadmap: "more apps and games coming soon — for now WaitRadar tracks Minecraft Preview",
+    footer: (link) => `Data from <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · checked automatically every 15 min · <a href="${link}" target="_blank" rel="noopener">Join the Telegram bot</a>`,
+    install_text: "📲 Install WaitRadar as an app on your phone",
+    install_btn: "Install",
+    install_ios: `📲 On iPhone: tap <b>Share</b> ↑ then <b>"Add to Home Screen"</b>`,
+    rel_seconds: "seconds ago",
+    rel_min: (n) => `${n} min ago`,
+    rel_hr: (n) => `${n} h ago`,
+    rel_day: (n) => `${n} day${n === 1 ? "" : "s"} ago`,
+    locale: "en"
+  }
+};
+
+function getLang(){
+  const saved = localStorage.getItem("waitradar_lang");
+  if (saved) return saved;
+  return navigator.language.startsWith("en") ? "en" : "es";
+}
+let currentLang = getLang();
+function t(key, ...args){
+  const val = I18N[currentLang][key];
+  return typeof val === "function" ? val(...args) : val;
+}
+
+function setLang(lang){
+  currentLang = lang;
+  localStorage.setItem("waitradar_lang", lang);
+  document.getElementById("htmlRoot").lang = lang;
+  document.getElementById("langEs").classList.toggle("active", lang === "es");
+  document.getElementById("langEn").classList.toggle("active", lang === "en");
+  document.getElementById("settingsLink").title = t("settings_title");
+  document.getElementById("loadMsg").textContent = t("loading_data");
+  document.getElementById("footerText").innerHTML = t("footer", "https://t.me/EithanCupoBot");
+  render();
+}
+
+document.getElementById("langEs").addEventListener("click", () => setLang("es"));
+document.getElementById("langEn").addEventListener("click", () => setLang("en"));
+
+// ---------- Utilidades de fecha ----------
 function fmtRelative(iso){
   const then = new Date(iso);
   const diffMs = Date.now() - then.getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "hace segundos";
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 1) return t("rel_seconds");
+  if (mins < 60) return t("rel_min", mins);
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs} h`;
+  if (hrs < 24) return t("rel_hr", hrs);
   const days = Math.floor(hrs / 24);
-  return `hace ${days} día${days === 1 ? "" : "s"}`;
+  return t("rel_day", days);
 }
 
 function daysSince(iso){
@@ -207,23 +349,22 @@ function daysSince(iso){
 
 function fmtDate(iso){
   const d = new Date(iso);
-  return d.toLocaleDateString("es", { day: "2-digit", month: "short" });
+  return d.toLocaleDateString(t("locale"), { day: "2-digit", month: "short" });
 }
 
 function fmtExact(iso){
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(t("locale"), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function fmtExactPlus15(iso){
   if (!iso) return "—";
   const d = new Date(new Date(iso).getTime() + 15 * 60000);
-  return d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(t("locale"), { hour: "2-digit", minute: "2-digit" });
 }
 
 function buildTimeline(history, currentStatus, lastChecked){
-  // Devuelve el estado día por día de los últimos 30 días, como barra de segmentos.
   const now = new Date(lastChecked || Date.now());
   const events = (history || [])
     .map(h => ({ status: h.status, at: new Date(h.changed_at) }))
@@ -232,7 +373,6 @@ function buildTimeline(history, currentStatus, lastChecked){
   const days = [];
   for (let i = 29; i >= 0; i--){
     const dayEnd = new Date(now.getTime() - i * 86400000);
-    // Estado vigente justo antes de que termine ese día
     let statusThatDay = events.length ? events[0].status : currentStatus;
     for (const e of events){
       if (e.at <= dayEnd) statusThatDay = e.status; else break;
@@ -243,140 +383,137 @@ function buildTimeline(history, currentStatus, lastChecked){
   return days;
 }
 
+let cachedData = null;
+
 async function render(){
   const main = document.getElementById("main");
   const liveDot = document.getElementById("liveDot");
   const liveLabel = document.getElementById("liveLabel");
   const updatedLabel = document.getElementById("updatedLabel");
 
-  let data;
-  try{
-    const res = await fetch(STATUS_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error("status.json no encontrado (" + res.status + ")");
-    data = await res.json();
-  }catch(err){
-    main.innerHTML = `<div class="load-msg">No se pudo cargar el estado (${err.message}).<br>Verificá que status.json esté publicado junto a esta página.</div>`;
-    liveLabel.textContent = "Sin conexión con los datos";
-    return;
+  let data = cachedData;
+  if (!data){
+    try{
+      const res = await fetch(STATUS_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error("status.json no encontrado (" + res.status + ")");
+      data = await res.json();
+      cachedData = data;
+    }catch(err){
+      main.innerHTML = `<div class="load-msg">${t("error_loading", err.message)}</div>`;
+      liveLabel.textContent = t("no_connection");
+      return;
+    }
   }
 
-  const status = data.status; // "open" | "full"
+  const status = data.status;
   const isOpen = status === "open";
   const history = data.history || [];
   const lastChecked = data.last_checked;
 
   liveDot.className = "live-dot " + (isOpen ? "up" : "down");
-  liveLabel.textContent = "Estado en tiempo real";
-  updatedLabel.textContent = lastChecked ? `Actualizado ${fmtRelative(lastChecked)}` : "";
+  liveLabel.textContent = t("live_now");
+  updatedLabel.textContent = lastChecked ? t("updated", fmtRelative(lastChecked)) : "";
 
-  // Días sin cupo / desde que se abrió
   const lastFullEntry = [...history].reverse().find(h => h.status === "full");
   const lastOpenEntry = [...history].reverse().find(h => h.status === "open");
   let bigNum, bigSub;
   if (isOpen){
     bigNum = lastOpenEntry ? daysSince(lastOpenEntry.changed_at) : 0;
-    bigSub = "Días con cupo disponible — ¡entrá ya!";
+    bigSub = t("days_open_sub");
   } else {
     bigNum = lastFullEntry ? daysSince(lastFullEntry.changed_at) : 0;
-    bigSub = "Racha actual sin cupo (desde el último cierre)";
+    bigSub = t("days_full_sub");
   }
 
   const timeline = buildTimeline(history, status, lastChecked);
   const barsHtml = timeline.map(d =>
-    `<div class="tl-bar ${d.status}" title="${d.date.toLocaleDateString('es', {day:'2-digit', month:'short'})}: ${d.status === 'full' ? 'sin cupo' : 'cupo disponible'}"></div>`
+    `<div class="tl-bar ${d.status}" title="${fmtDate(d.date)}: ${d.status === 'full' ? t('legend_full') : t('legend_open')}"></div>`
   ).join("");
   const chartHtml = `
     <div class="timeline">${barsHtml}</div>
     <div style="display:flex; justify-content:space-between;">
       <span class="axis-label">${fmtDate(timeline[0].date)}</span>
-      <span class="axis-label">hoy</span>
+      <span class="axis-label">${t("today")}</span>
     </div>
     <div class="timeline-legend">
-      <span><i class="dot full"></i> sin cupo</span>
-      <span><i class="dot open"></i> cupo disponible</span>
+      <span><i class="dot full"></i> ${t("legend_full")}</span>
+      <span><i class="dot open"></i> ${t("legend_open")}</span>
     </div>
   `;
 
   main.innerHTML = `
     <div class="row">
       <div class="card">
-        <div class="card-label">${isOpen ? "Días con cupo" : "Días sin cupo"}</div>
+        <div class="card-label">${isOpen ? t("days_open_label") : t("days_full_label")}</div>
         <div class="big-num ${isOpen ? "open" : "full"}">${bigNum}</div>
         <div class="big-sub">${bigSub}</div>
       </div>
 
       <div class="card">
-        <div class="chart-title"><span>ACTIVIDAD DE CUPOS · ÚLTIMOS 30 DÍAS</span></div>
+        <div class="chart-title"><span>${t("chart_title")}</span></div>
         ${chartHtml}
       </div>
 
       <div class="card">
-        <div class="card-label">Minecraft Preview</div>
+        <div class="card-label">${t("minecraft_preview")}</div>
         <div class="status-pill">
           <span class="status-dot ${isOpen ? "open" : "full"}"></span>
-          <span class="status-headline ${isOpen ? "open" : "full"}${!isOpen ? " pulse" : ""}">${isOpen ? "Cupo disponible" : "Sin cupos"}</span>
+          <span class="status-headline ${isOpen ? "open" : "full"}${!isOpen ? " pulse" : ""}">${isOpen ? t("status_open") : t("status_full")}</span>
         </div>
         <div class="status-desc">
-          ${isOpen
-            ? `Hay cupo ahora mismo. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Entrá al beta</a>.`
-            : "No hay cupos disponibles en este momento."}
-          <br><br>Última revisión: ${fmtExact(lastChecked)}
-          <br>Próxima revisión: ~${fmtExactPlus15(lastChecked)}
+          ${isOpen ? t("desc_open") : t("desc_full")}
+          <br><br>${t("last_check")} ${fmtExact(lastChecked)}
+          <br>${t("next_check")}${fmtExactPlus15(lastChecked)}
         </div>
       </div>
     </div>
 
     <div class="bottom-row">
-      <div class="bell">🔔 Notificaciones gratis vía <a href="https://t.me/EithanCupoBot" target="_blank" rel="noopener">Telegram</a></div>
-      <div class="share-btn" onclick="navigator.share ? navigator.share({title:'WaitRadar', text:'${isOpen ? "Hay cupo en Minecraft Preview ahora" : "Estado del beta de Minecraft Preview"}', url:location.href}) : alert('Copiá el link de esta página para compartir: ' + location.href)">↗ Compartir estado</div>
+      <div class="bell">${t("bell_text", "https://t.me/EithanCupoBot")}</div>
+      <div class="share-btn" onclick="navigator.share ? navigator.share({title:'WaitRadar', text:'${isOpen ? t("share_text_open") : t("share_text_full")}', url:location.href}) : alert('${t("share_fallback")}' + location.href)">${t("share_btn")}</div>
     </div>
 
     <div class="card tip-card">
-      <div class="card-label">Apoya el proyecto</div>
-      <div class="tip-text">
-        Este sitio y el bot son gratis y los mantengo yo solo, en mi tiempo libre.
-        Si te sirvió, una propina ayuda a seguir mejorando el diseño y agregando más juegos. Nada es obligatorio 🙂
-      </div>
+      <div class="card-label">${t("support_title")}</div>
+      <div class="tip-text">${t("support_text")}</div>
       <div class="tip-buttons">
         <a class="tip-btn" href="https://paypal.me/GloriaRivera907380/1" target="_blank" rel="noopener">☕ $1</a>
         <a class="tip-btn" href="https://paypal.me/GloriaRivera907380/3" target="_blank" rel="noopener">🍕 $3</a>
         <a class="tip-btn" href="https://paypal.me/GloriaRivera907380/5" target="_blank" rel="noopener">🎉 $5</a>
-        <a class="tip-btn" href="https://paypal.me/GloriaRivera907380" target="_blank" rel="noopener">💙 Otro monto</a>
+        <a class="tip-btn" href="https://paypal.me/GloriaRivera907380" target="_blank" rel="noopener">${t("other_amount")}</a>
       </div>
-      <div class="tip-note">El pago se procesa a nombre de Gloria Rivera (administradora de pagos del proyecto) — es correcto, no te preocupes.</div>
+      <div class="tip-note">${t("paypal_note")}</div>
     </div>
 
     <div class="card yt-card">
       <div class="yt-header">
         <div class="yt-avatar">🦈</div>
         <div>
-          <div class="yt-title">Hola, soy KuroShark</div>
-          <div class="yt-sub">creador de contenido — animaciones de Minecraft y FNF</div>
+          <div class="yt-title">${t("yt_title")}</div>
+          <div class="yt-sub">${t("yt_sub")}</div>
         </div>
       </div>
-      <div class="yt-text">
-        WaitRadar es un proyecto chiquito que armé solo, igual que mi canal.
-        Si te gustó, me encantaría que te unas — crezcamos juntos como una familia gigante 🦈
-      </div>
-      <a class="yt-btn" href="https://youtube.com/@kuroshark-n1c" target="_blank" rel="noopener">▶ Suscríbete en YouTube</a>
+      <div class="yt-text">${t("yt_text")}</div>
+      <a class="yt-btn" href="https://youtube.com/@kuroshark-n1c" target="_blank" rel="noopener">${t("yt_btn")}</a>
     </div>
 
     <div class="card discord-card">
       <div class="yt-header">
         <div class="discord-avatar">💬</div>
         <div>
-          <div class="yt-title">Únete a la comunidad</div>
-          <div class="yt-sub">ideas, bugs, y hablar de WaitRadar con más gente</div>
+          <div class="yt-title">${t("discord_title")}</div>
+          <div class="yt-sub">${t("discord_sub")}</div>
         </div>
       </div>
-      <a class="discord-btn" href="https://discord.gg/yPVpBv76C" target="_blank" rel="noopener">💬 Entrar al Discord</a>
+      <a class="discord-btn" href="https://discord.gg/yPVpBv76C" target="_blank" rel="noopener">${t("discord_btn")}</a>
     </div>
 
-    <div class="roadmap-note">más apps y juegos próximamente — por ahora WaitRadar sigue de cerca Minecraft Preview</div>
+    <div class="roadmap-note">${t("roadmap")}</div>
   `;
 }
 
-render();
+// ---------- Inicialización ----------
+setLang(currentLang);
 
 // --- PWA: registrar service worker ---
 if ("serviceWorker" in navigator){
@@ -390,6 +527,8 @@ let deferredPrompt = null;
 const installBar = document.getElementById("installBar");
 const installBtn = document.getElementById("installBtn");
 const installDismiss = document.getElementById("installDismiss");
+installBtn.textContent = t("install_btn");
+document.getElementById("installText").textContent = t("install_text");
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -417,7 +556,7 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isStandalone = window.navigator.standalone === true;
 if (isIOS && !isStandalone && !localStorage.getItem("waitradar_install_dismissed")){
   installBar.innerHTML = `
-    <span>📲 En iPhone: tocá <b>Compartir</b> ↑ y luego <b>"Agregar a pantalla de inicio"</b></span>
+    <span>${t("install_ios")}</span>
     <span class="install-dismiss" id="installDismissIOS">✕</span>
   `;
   installBar.classList.add("show");
