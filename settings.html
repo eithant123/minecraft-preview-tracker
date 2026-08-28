@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" id="htmlRoot">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,12 +20,20 @@
   }
   header{
     width:100%; max-width:640px;
-    display:flex; align-items:center; gap:10px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:16px 20px; border-bottom:1px solid var(--line);
   }
+  .header-left{ display:flex; align-items:center; gap:10px; }
   .back{ color:var(--dim); text-decoration:none; font-size:13px; }
   .brand-name{ font-family:'Press Start 2P', monospace; font-size:11px; }
   .brand-name b{ color:var(--gold); }
+
+  .lang-switch{ display:flex; gap:4px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:2px; }
+  .lang-btn{
+    font-size:10.5px; font-weight:700; padding:4px 8px; border-radius:6px; cursor:pointer;
+    color:var(--dim); background:transparent; border:none; font-family:'JetBrains Mono', monospace;
+  }
+  .lang-btn.active{ background:var(--grass-dark); color:#fff; }
 
   main{ width:100%; max-width:640px; padding:20px; }
 
@@ -74,6 +82,19 @@
     background:rgba(232,185,62,.12); color:var(--gold); border:1px solid rgba(232,185,62,.4);
   }
   .free-note{ font-size:10.5px; color:var(--dim); margin-top:10px; line-height:1.5; }
+  .discord-id-row{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .discord-id-label{ font-size:11.5px; margin-bottom:6px; }
+  .discord-id-help{ font-size:10px; color:var(--dim); line-height:1.5; margin-bottom:10px; }
+  .discord-id-input-row{ display:flex; gap:8px; }
+  #discordIdInput{
+    flex:1; background:var(--night); color:var(--text); border:1px solid var(--line);
+    border-radius:6px; padding:8px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;
+  }
+  #discordIdSaveBtn{
+    background:#5865F2; color:#fff; border:none; border-radius:6px; padding:8px 14px;
+    font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0;
+  }
+  #discordIdSaveBtn.saved{ background:var(--grass-dark); }
 
   .login-card{ text-align:center; padding:30px 20px; }
   .login-card p{ font-size:12px; color:var(--dim); line-height:1.6; margin-bottom:20px; }
@@ -85,12 +106,18 @@
 <body>
 
 <header>
-  <a class="back" href="./index.html">← volver</a>
-  <div class="brand-name">WAIT<b>RADAR</b> · configuración</div>
+  <div class="header-left">
+    <a class="back" href="./index.html" id="backLink">← volver</a>
+    <div class="brand-name">WAIT<b>RADAR</b> · <span id="headerSub">configuración</span></div>
+  </div>
+  <div class="lang-switch">
+    <button class="lang-btn" id="langEs">ES</button>
+    <button class="lang-btn" id="langEn">EN</button>
+  </div>
 </header>
 
 <main id="main">
-  <div class="load-msg">Cargando…</div>
+  <div class="load-msg" id="loadMsg">…</div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -100,8 +127,114 @@ const SUPABASE_KEY = "sb_publishable_uBT5wGvI0hxWIJALj1E9rg_MEN6Q8WF";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const BOT_USERNAME = "EithanCupoBot";
 
-let user = null;   // datos de Telegram (id, first_name, username, photo_url)
-let prefs = null;  // fila de user_prefs para ese usuario
+let user = null;
+let prefs = null;
+
+const I18N = {
+  es: {
+    back: "← volver",
+    header_sub: "configuración",
+    loading: "Cargando…",
+    login_title: "Iniciar sesión",
+    login_text: "Inicia sesión con tu cuenta de Telegram para ver y ajustar tus propias notificaciones de WaitRadar.",
+    loading_prefs: "Cargando tu configuración…",
+    db_error: "No se pudo conectar con la base de datos.<br>Intenta de nuevo en un momento.",
+    logout: "Cerrar sesión",
+    no_username: "sin @usuario",
+    your_plan: "Tu plan",
+    premium_tag: "⭐ premium",
+    premium_note: "Tienes premium — más adelante aquí vas a poder elegir avisos por WhatsApp/SMS además de Telegram.",
+    free_note: "Plan gratis: avisos por Telegram cada 15 min. El plan premium (revisión cada 5 min + más canales) llega pronto.",
+    discord_id_label: "Tu ID de Discord (para avisos por DM)",
+    discord_id_help: "Activa el modo desarrollador en Discord (Ajustes → Avanzado), luego mantén tocado tu nombre de usuario y elige \"Copiar ID de usuario\".",
+    discord_id_placeholder: "Pega tu ID de Discord aquí",
+    discord_id_save: "Guardar",
+    discord_id_saved: "¡Guardado!",
+    when_notify: "Cuándo avisarte",
+    on_open_label: "Cuando se abre un cupo",
+    on_open_desc: "Aviso 🟢 apenas hay lugar",
+    on_close_label: "Cuando se cierra un cupo",
+    on_close_desc: "Aviso 🔴 cuando se vuelve a llenar",
+    quiet_hours: "Horario de silencio",
+    quiet_enable_label: "Activar horario sin avisos",
+    quiet_enable_desc: "No te avisa en ese rango, aunque el estado cambie",
+    quiet_from: "Desde",
+    quiet_to: "Hasta",
+    mute_now: "Silenciar ahora",
+    mute_4h: "4 horas",
+    mute_12h: "12 horas",
+    mute_1d: "1 día",
+    mute_off: "Quitar silencio",
+    not_muted: "No está silenciado ahora mismo.",
+    muted_until: (d) => `Silenciado hasta ${d}.`,
+    locale: "es"
+  },
+  en: {
+    back: "← back",
+    header_sub: "settings",
+    loading: "Loading…",
+    login_title: "Log in",
+    login_text: "Log in with your Telegram account to view and adjust your own WaitRadar notifications.",
+    loading_prefs: "Loading your settings…",
+    db_error: "Couldn't connect to the database.<br>Try again in a moment.",
+    logout: "Log out",
+    no_username: "no @username",
+    your_plan: "Your plan",
+    premium_tag: "⭐ premium",
+    premium_note: "You have premium — soon you'll be able to choose WhatsApp/SMS alerts here too, in addition to Telegram.",
+    free_note: "Free plan: Telegram alerts every 15 min. The premium plan (5 min checks + more channels) is coming soon.",
+    discord_id_label: "Your Discord ID (for DM alerts)",
+    discord_id_help: "Turn on Developer Mode in Discord (Settings → Advanced), then long-press your username and choose \"Copy User ID\".",
+    discord_id_placeholder: "Paste your Discord ID here",
+    discord_id_save: "Save",
+    discord_id_saved: "Saved!",
+    when_notify: "When to notify you",
+    on_open_label: "When a slot opens",
+    on_open_desc: "🟢 alert as soon as there's a spot",
+    on_close_label: "When a slot closes",
+    on_close_desc: "🔴 alert when it fills up again",
+    quiet_hours: "Quiet hours",
+    quiet_enable_label: "Turn on quiet hours",
+    quiet_enable_desc: "No alerts in that range, even if the status changes",
+    quiet_from: "From",
+    quiet_to: "To",
+    mute_now: "Mute now",
+    mute_4h: "4 hours",
+    mute_12h: "12 hours",
+    mute_1d: "1 day",
+    mute_off: "Unmute",
+    not_muted: "Not muted right now.",
+    muted_until: (d) => `Muted until ${d}.`,
+    locale: "en"
+  }
+};
+
+function getLang(){
+  const saved = localStorage.getItem("waitradar_lang");
+  if (saved) return saved;
+  return navigator.language.startsWith("en") ? "en" : "es";
+}
+let currentLang = getLang();
+function t(key, ...args){
+  const val = I18N[currentLang][key];
+  return typeof val === "function" ? val(...args) : val;
+}
+
+function setLang(lang){
+  currentLang = lang;
+  localStorage.setItem("waitradar_lang", lang);
+  document.getElementById("htmlRoot").lang = lang;
+  document.getElementById("langEs").classList.toggle("active", lang === "es");
+  document.getElementById("langEn").classList.toggle("active", lang === "en");
+  document.getElementById("backLink").textContent = t("back");
+  document.getElementById("headerSub").textContent = t("header_sub");
+  if (prefs) render();
+  else if (!user) renderLogin();
+  else document.getElementById("loadMsg").textContent = t("loading_prefs");
+}
+
+document.getElementById("langEs").addEventListener("click", () => setLang("es"));
+document.getElementById("langEn").addEventListener("click", () => setLang("en"));
 
 function init(){
   const saved = localStorage.getItem("waitradar_tg_user");
@@ -117,8 +250,8 @@ function renderLogin(){
   const main = document.getElementById("main");
   main.innerHTML = `
     <div class="card login-card">
-      <div class="card-title">Iniciar sesión</div>
-      <p>Inicia sesión con tu cuenta de Telegram para ver y ajustar tus propias notificaciones de WaitRadar.</p>
+      <div class="card-title">${t("login_title")}</div>
+      <p>${t("login_text")}</p>
       <div id="telegramWidget"></div>
     </div>
   `;
@@ -133,7 +266,6 @@ function renderLogin(){
   document.getElementById("telegramWidget").appendChild(script);
 }
 
-// Llamado por el widget de Telegram al iniciar sesión
 window.onTelegramAuth = function(tgUser){
   user = tgUser;
   localStorage.setItem("waitradar_tg_user", JSON.stringify(user));
@@ -142,12 +274,11 @@ window.onTelegramAuth = function(tgUser){
 
 async function loadPrefsAndRender(){
   const main = document.getElementById("main");
-  main.innerHTML = `<div class="load-msg">Cargando tu configuración…</div>`;
+  main.innerHTML = `<div class="load-msg">${t("loading_prefs")}</div>`;
 
   let { data, error } = await sb.from("user_prefs").select("*").eq("telegram_id", user.id).maybeSingle();
 
   if (!data){
-    // primera vez que este usuario inicia sesión: crear su fila
     const insertRes = await sb.from("user_prefs").insert({
       telegram_id: user.id,
       telegram_username: user.username || null,
@@ -158,7 +289,7 @@ async function loadPrefsAndRender(){
   }
 
   if (error || !data){
-    main.innerHTML = `<div class="load-msg">No se pudo conectar con la base de datos.<br>Intenta de nuevo en un momento.</div>`;
+    main.innerHTML = `<div class="load-msg">${t("db_error")}</div>`;
     console.error(error);
     return;
   }
@@ -175,65 +306,73 @@ function render(){
         : `<div class="avatar-fallback">${(user.first_name || "?")[0].toUpperCase()}</div>`}
       <div>
         <div class="name">${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}</div>
-        <div class="handle">${user.username ? "@" + user.username : "sin @usuario"}</div>
+        <div class="handle">${user.username ? "@" + user.username : t("no_username")}</div>
       </div>
-      <button class="logout-btn" id="logoutBtn">Cerrar sesión</button>
+      <button class="logout-btn" id="logoutBtn">${t("logout")}</button>
     </div>
 
     <div class="card">
       <div class="card-title">
-        Tu plan
-        ${prefs.is_premium ? `<span class="premium-tag">⭐ premium</span>` : ""}
+        ${t("your_plan")}
+        ${prefs.is_premium ? `<span class="premium-tag">${t("premium_tag")}</span>` : ""}
       </div>
       ${prefs.is_premium
-        ? `<div class="free-note">Tienes premium — más adelante aquí vas a poder elegir avisos por WhatsApp/SMS además de Telegram.</div>`
-        : `<div class="free-note">Plan gratis: avisos por Telegram cada 15 min. El plan premium (revisión cada 5 min + más canales) llega pronto.</div>`}
+        ? `<div class="free-note">${t("premium_note")}</div>
+           <div class="discord-id-row">
+             <div class="discord-id-label">${t("discord_id_label")}</div>
+             <div class="discord-id-help">${t("discord_id_help")}</div>
+             <div class="discord-id-input-row">
+               <input type="text" id="discordIdInput" placeholder="${t("discord_id_placeholder")}" value="${prefs.discord_user_id || ""}">
+               <button id="discordIdSaveBtn">${t("discord_id_save")}</button>
+             </div>
+           </div>`
+        : `<div class="free-note">${t("free_note")}</div>`}
     </div>
 
     <div class="card">
-      <div class="card-title">Cuándo avisarte</div>
+      <div class="card-title">${t("when_notify")}</div>
       <div class="row">
         <div>
-          <div class="row-label">Cuando se abre un cupo</div>
-          <div class="row-desc">Aviso 🟢 apenas hay lugar</div>
+          <div class="row-label">${t("on_open_label")}</div>
+          <div class="row-desc">${t("on_open_desc")}</div>
         </div>
         <div class="switch ${prefs.notify_on_open ? "on" : ""}" data-key="notify_on_open"></div>
       </div>
       <div class="row">
         <div>
-          <div class="row-label">Cuando se cierra un cupo</div>
-          <div class="row-desc">Aviso 🔴 cuando se vuelve a llenar</div>
+          <div class="row-label">${t("on_close_label")}</div>
+          <div class="row-desc">${t("on_close_desc")}</div>
         </div>
         <div class="switch ${prefs.notify_on_close ? "on" : ""}" data-key="notify_on_close"></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Horario de silencio</div>
+      <div class="card-title">${t("quiet_hours")}</div>
       <div class="row">
         <div>
-          <div class="row-label">Activar horario sin avisos</div>
-          <div class="row-desc">No te avisa en ese rango, aunque el estado cambie</div>
+          <div class="row-label">${t("quiet_enable_label")}</div>
+          <div class="row-desc">${t("quiet_enable_desc")}</div>
         </div>
         <div class="switch ${prefs.quiet_hours_enabled ? "on" : ""}" data-key="quiet_hours_enabled"></div>
       </div>
       <div class="row">
-        <div class="row-label">Desde</div>
+        <div class="row-label">${t("quiet_from")}</div>
         <input type="time" id="quietStart" value="${prefs.quiet_hours_start}">
       </div>
       <div class="row">
-        <div class="row-label">Hasta</div>
+        <div class="row-label">${t("quiet_to")}</div>
         <input type="time" id="quietEnd" value="${prefs.quiet_hours_end}">
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Silenciar ahora</div>
+      <div class="card-title">${t("mute_now")}</div>
       <div class="mute-btns">
-        <div class="mute-btn" data-hours="4">4 horas</div>
-        <div class="mute-btn" data-hours="12">12 horas</div>
-        <div class="mute-btn" data-hours="24">1 día</div>
-        <div class="mute-btn" data-hours="0">Quitar silencio</div>
+        <div class="mute-btn" data-hours="4">${t("mute_4h")}</div>
+        <div class="mute-btn" data-hours="12">${t("mute_12h")}</div>
+        <div class="mute-btn" data-hours="24">${t("mute_1d")}</div>
+        <div class="mute-btn" data-hours="0">${t("mute_off")}</div>
       </div>
       <div class="mute-status" id="muteStatus">${muteStatusText()}</div>
     </div>
@@ -243,6 +382,16 @@ function render(){
     localStorage.removeItem("waitradar_tg_user");
     user = null; prefs = null;
     renderLogin();
+  });
+
+  document.getElementById("discordIdSaveBtn")?.addEventListener("click", () => {
+    const input = document.getElementById("discordIdInput");
+    prefs.discord_user_id = input.value.trim() || null;
+    savePrefs();
+    const btn = document.getElementById("discordIdSaveBtn");
+    btn.textContent = t("discord_id_saved");
+    btn.classList.add("saved");
+    setTimeout(() => { btn.textContent = t("discord_id_save"); btn.classList.remove("saved"); }, 1500);
   });
 
   main.querySelectorAll(".switch").forEach(sw => {
@@ -280,12 +429,13 @@ async function savePrefs(){
 }
 
 function muteStatusText(){
-  if (!prefs.muted_until) return "No está silenciado ahora mismo.";
+  if (!prefs.muted_until) return t("not_muted");
   const until = new Date(prefs.muted_until);
-  if (until < new Date()) return "No está silenciado ahora mismo.";
-  return `Silenciado hasta ${until.toLocaleString("es")}.`;
+  if (until < new Date()) return t("not_muted");
+  return t("muted_until", until.toLocaleString(t("locale")));
 }
 
+setLang(currentLang);
 init();
 </script>
 </body>

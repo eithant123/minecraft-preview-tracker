@@ -37,6 +37,8 @@ DEFAULT_PREFS = {
     "quiet_hours_end": "08:00",
     "utc_offset_hours": -4,
     "muted_until": None,
+    "is_premium": False,
+    "discord_user_id": None,
 }
 
 
@@ -131,6 +133,43 @@ def send_telegram(chat_id, message: str) -> None:
         print(f"No se pudo avisar a {chat_id}: {e}", file=sys.stderr)
 
 
+def send_discord_dm(discord_user_id: str, message: str) -> None:
+    """Manda un mensaje directo (DM) a un usuario de Discord por su ID,
+    usando la API REST del bot — no necesita mantenerse conectado 24/7,
+    solo dos llamadas HTTP: abrir el canal de DM y mandar el mensaje.
+    """
+    token = os.environ.get("DISCORD_BOT_TOKEN")
+    if not token or not discord_user_id:
+        print("Falta DISCORD_BOT_TOKEN o discord_user_id, no se envía DM.")
+        return
+
+    headers = {
+        "Authorization": f"Bot {token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        # 1. Abrir (o reusar) el canal de DM con ese usuario
+        dm_resp = requests.post(
+            "https://discord.com/api/v10/users/@me/channels",
+            json={"recipient_id": discord_user_id},
+            headers=headers,
+            timeout=15,
+        )
+        dm_resp.raise_for_status()
+        channel_id = dm_resp.json()["id"]
+
+        # 2. Mandar el mensaje a ese canal
+        msg_resp = requests.post(
+            f"https://discord.com/api/v10/channels/{channel_id}/messages",
+            json={"content": message},
+            headers=headers,
+            timeout=15,
+        )
+        msg_resp.raise_for_status()
+    except Exception as e:
+        print(f"No se pudo mandar DM de Discord a {discord_user_id}: {e}", file=sys.stderr)
+
+
 def main() -> None:
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat(timespec="seconds")
@@ -172,14 +211,22 @@ def main() -> None:
                 print(f"{chat_id}: notify_on_close desactivado, no se avisa.")
                 continue
 
+            discord_msg = None
             if current_status == "open":
-                send_telegram(
-                    chat_id,
+                telegram_msg = (
                     "🟢 ¡Hay cupos en Minecraft Preview (TestFlight)! "
                     f"Entra ya: {TESTFLIGHT_URL}"
                 )
+                discord_msg = f"🟢 ¡Hay cupos en Minecraft Preview! Entra ya: {TESTFLIGHT_URL}"
             else:
-                send_telegram(chat_id, "🔴 El beta de Minecraft Preview se llenó de nuevo.")
+                telegram_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
+                discord_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
+
+            send_telegram(chat_id, telegram_msg)
+
+            # Discord: solo para usuarios premium que guardaron su ID
+            if prefs.get("is_premium") and prefs.get("discord_user_id"):
+                send_discord_dm(prefs["discord_user_id"], discord_msg)
     else:
         print(f"Sin cambios. Estado actual: {current_status}")
 
