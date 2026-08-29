@@ -265,7 +265,7 @@ const I18N = {
     top_donors_title: "🏆 Top Donadores",
     anonymous: "Anónimo",
     your_rank: (rank, next) => `Estás en el puesto #${rank} — ¡dona y sube al #${next}!`,
-    your_rank_top: "¡Estás en el Top 5! 🎉",
+    your_rank_top: (rank) => `¡Estás en el puesto #${rank}! 🎉`,
     footer: (link) => `Datos de <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · revisado automáticamente cada 15 min · <a href="${link}" target="_blank" rel="noopener">Únete al bot de Telegram</a>`,
     install_text: "📲 Instalá WaitRadar como app en tu celular",
     install_btn: "Instalar",
@@ -319,7 +319,7 @@ const I18N = {
     top_donors_title: "🏆 Top Donors",
     anonymous: "Anonymous",
     your_rank: (rank, next) => `You're #${rank} — donate and climb to #${next}!`,
-    your_rank_top: "You're in the Top 5! 🎉",
+    your_rank_top: (rank) => `You're #${rank}! 🎉`,
     footer: (link) => `Data from <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · checked automatically every 15 min · <a href="${link}" target="_blank" rel="noopener">Join the Telegram bot</a>`,
     install_text: "📲 Install WaitRadar as an app on your phone",
     install_btn: "Install",
@@ -588,7 +588,7 @@ async function loadTopDonors(){
   if (myIndex === -1) return;
 
   if (myIndex < 5){
-    rankNote.innerHTML = `<div class="your-rank-note">${t("your_rank_top")}</div>`;
+    rankNote.innerHTML = `<div class="your-rank-note">${t("your_rank_top", myIndex + 1)}</div>`;
   } else {
     rankNote.innerHTML = `<div class="your-rank-note">${t("your_rank", myIndex + 1, myIndex)}</div>`;
   }
