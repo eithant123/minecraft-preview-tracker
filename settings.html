@@ -64,12 +64,22 @@
 
   .profile-card{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
   .profile-card img{ width:48px; height:48px; border-radius:50%; border:2px solid var(--line); flex-shrink:0; }
+  .profile-card img.premium{ border-color:var(--gold); box-shadow:0 0 14px rgba(232,185,62,.5); }
   .profile-card .avatar-fallback{
     width:48px; height:48px; border-radius:50%; flex-shrink:0;
     background:rgba(74,144,217,.15); border:2px solid rgba(74,144,217,.4);
     display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--sky); font-weight:700;
   }
+  .profile-card .avatar-fallback.premium{
+    border-color:var(--gold); box-shadow:0 0 14px rgba(232,185,62,.5);
+    background:rgba(232,185,62,.15); color:var(--gold);
+  }
+  .name-row{ display:flex; align-items:center; gap:6px; }
   .profile-card .name{ font-size:14px; font-weight:700; color:#fff; }
+  .profile-badge{
+    font-size:8.5px; padding:2px 7px; border-radius:20px; font-weight:700;
+    background:linear-gradient(90deg, var(--gold), #f0d078); color:#1a1408;
+  }
   .profile-card .handle{ font-size:11px; color:var(--dim); margin-top:2px; }
   .profile-card .logout-btn{ margin-left:auto; }
   .logout-btn{
@@ -360,10 +370,13 @@ function render(){
   main.innerHTML = `
     <div class="profile-card">
       ${user.photo_url
-        ? `<img src="${user.photo_url}" alt="">`
-        : `<div class="avatar-fallback">${(user.first_name || "?")[0].toUpperCase()}</div>`}
+        ? `<img class="${activePremium ? "premium" : ""}" src="${user.photo_url}" alt="">`
+        : `<div class="avatar-fallback ${activePremium ? "premium" : ""}">${(user.first_name || "?")[0].toUpperCase()}</div>`}
       <div>
-        <div class="name">${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}</div>
+        <div class="name-row">
+          <span class="name">${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}</span>
+          ${activePremium ? `<span class="profile-badge">${t("premium_tag")}</span>` : ""}
+        </div>
         <div class="handle">${user.username ? "@" + user.username : t("no_username")}</div>
       </div>
       <button class="logout-btn" id="logoutBtn">${t("logout")}</button>
