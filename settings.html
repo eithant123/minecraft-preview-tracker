@@ -89,7 +89,9 @@
   .price-card{
     flex:1; background:var(--night); border:1px solid var(--line); border-radius:10px;
     padding:10px 6px; text-align:center; position:relative;
+    text-decoration:none; display:block; transition:background .15s;
   }
+  .price-card:active{ background:#1a2028; }
   .price-card.best{ border-color:var(--gold); }
   .price-card .best-tag{
     position:absolute; top:-9px; left:50%; transform:translateX(-50%);
@@ -98,6 +100,7 @@
   }
   .price-card .amount{ font-family:'Press Start 2P', monospace; font-size:15px; color:var(--gold); margin:5px 0 3px; }
   .price-card .period{ font-size:9.5px; color:var(--dim); }
+  .upsell-note{ font-size:10px; color:var(--dim); line-height:1.5; margin-bottom:10px; }
   .upsell-btn{
     display:block; text-align:center; padding:12px; border-radius:8px;
     background:linear-gradient(90deg, var(--gold), #f0d078); color:#1a1408;
@@ -177,6 +180,7 @@ const I18N = {
     price_life: "de por vida",
     best_price: "MEJOR PRECIO",
     upsell_btn: "Escríbeme para activarlo →",
+    upsell_note: "Después de pagar, escríbenos por Telegram con tu @usuario de WaitRadar para activar tu premium.",
     premium_expires: (d) => `Tu premium vence el ${d}.`,
     premium_forever: "Tu premium no vence — lo tienes de por vida.",
     discord_id_label: "Tu ID de Discord (para avisos por DM)",
@@ -227,6 +231,7 @@ const I18N = {
     price_life: "lifetime",
     best_price: "BEST VALUE",
     upsell_btn: "Message me to activate →",
+    upsell_note: "After paying, message us on Telegram with your WaitRadar @username to activate your premium.",
     premium_expires: (d) => `Your premium expires on ${d}.`,
     premium_forever: "Your premium never expires — you have it for life.",
     discord_id_label: "Your Discord ID (for DM alerts)",
@@ -389,21 +394,22 @@ function render(){
              <li>${t("upsell_4")}</li>
            </ul>
            <div class="price-options">
-             <div class="price-card">
+             <a class="price-card" href="https://paypal.me/GloriaRivera907380/7" target="_blank" rel="noopener">
                <div class="period">${t("price_month")}</div>
                <div class="amount">$7</div>
-             </div>
-             <div class="price-card">
+             </a>
+             <a class="price-card" href="https://paypal.me/GloriaRivera907380/10" target="_blank" rel="noopener">
                <div class="period">${t("price_year")}</div>
                <div class="amount">$10</div>
-             </div>
-             <div class="price-card best">
+             </a>
+             <a class="price-card best" href="https://paypal.me/GloriaRivera907380/20" target="_blank" rel="noopener">
                <div class="best-tag">${t("best_price")}</div>
                <div class="period">${t("price_life")}</div>
                <div class="amount">$20</div>
-             </div>
+             </a>
            </div>
-           <a class="upsell-btn" href="https://t.me/EithanCupoBot" target="_blank" rel="noopener">${t("upsell_btn")}</a>`}
+           <div class="upsell-note">${t("upsell_note")}</div>
+           <a class="upsell-btn" href="https://t.me/WaitRadarSupport" target="_blank" rel="noopener">${t("upsell_btn")}</a>`}
     </div>
 
     <div class="card">
