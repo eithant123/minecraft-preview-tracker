@@ -39,7 +39,16 @@
   .brand .blocks span:nth-child(2){background:var(--dirt);}
   .brand .blocks span:nth-child(3){background:var(--stone);}
   .brand-name{ font-family:'Press Start 2P', monospace; font-size:11px; color:var(--text); letter-spacing:.03em; }
-  .brand-name b{ color:var(--gold); }
+  .brand-name b{
+    background: linear-gradient(90deg, var(--gold) 0%, #fff6d8 50%, var(--gold) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shine 4s linear infinite;
+  }
+  @keyframes shine{
+    0%{ background-position: 200% center; }
+    100%{ background-position: -200% center; }
+  }
   .live{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); }
   .live-dot{ width:7px;height:7px; border-radius:50%; background:var(--stone); box-shadow:0 0 8px var(--stone); animation:pulse 1.6s infinite; }
   .live-dot.up{ background:var(--grass); box-shadow:0 0 8px var(--grass); }
@@ -60,7 +69,11 @@
   .row{ display:grid; grid-template-columns: 1fr 1.6fr 1fr; gap:14px; margin-bottom:14px; }
   @media (max-width:720px){ .row{ grid-template-columns:1fr; } }
 
-  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; animation: fadeUp .4s ease-out backwards; }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:translateY(0); } }
+  .row .card:nth-child(1){ animation-delay:.05s; }
+  .row .card:nth-child(2){ animation-delay:.12s; }
+  .row .card:nth-child(3){ animation-delay:.19s; }
   .card-label{ font-size:10px; color:var(--dim); letter-spacing:.05em; text-transform:uppercase; margin-bottom:10px; }
 
   .big-num{ font-family:'Press Start 2P', monospace; font-size:34px; line-height:1; margin-bottom:6px; }
