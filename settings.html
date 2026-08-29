@@ -347,6 +347,17 @@ async function loadPrefsAndRender(){
     }).select().single();
     data = insertRes.data;
     error = insertRes.error;
+  } else {
+    // Ya existía: actualiza nombre/username por si cambiaron en Telegram desde el último login
+    const freshName = (user.first_name || "") + (user.last_name ? " " + user.last_name : "") || null;
+    if (data.telegram_username !== (user.username || null) || data.telegram_first_name !== freshName){
+      const updateRes = await sb.from("user_prefs")
+        .update({ telegram_username: user.username || null, telegram_first_name: freshName })
+        .eq("telegram_id", user.id)
+        .select()
+        .single();
+      if (!updateRes.error) data = updateRes.data;
+    }
   }
 
   if (error || !data){
