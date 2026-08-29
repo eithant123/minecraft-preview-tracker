@@ -137,6 +137,15 @@
     padding:12px; border-radius:8px;
   }
   .discord-card{ background:linear-gradient(160deg, rgba(88,101,242,.12), var(--panel)); border-color:rgba(88,101,242,.35); margin-bottom:20px; }
+  .top-donors-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .top-donors-row:last-child{ border-bottom:none; }
+  .top-medal{ font-size:18px; width:26px; text-align:center; flex-shrink:0; }
+  .top-name{ font-size:12.5px; font-weight:700; color:#fff; flex:1; }
+  .top-amount{ font-size:11px; color:var(--gold); font-weight:700; }
+  .your-rank-note{
+    font-size:11px; color:var(--gold); text-align:center; margin-top:12px;
+    padding:10px; background:rgba(232,185,62,.08); border-radius:8px;
+  }
   .discord-avatar{
     width:42px; height:42px; border-radius:50%; flex-shrink:0;
     background:rgba(88,101,242,.15); border:1px solid rgba(88,101,242,.4);
@@ -253,6 +262,10 @@ const I18N = {
     discord_sub: "ideas, bugs, y hablar de WaitRadar con más gente",
     discord_btn: "💬 Entrar al Discord",
     roadmap: "más apps y juegos próximamente — por ahora WaitRadar sigue de cerca Minecraft Preview",
+    top_donors_title: "🏆 Top Donadores",
+    anonymous: "Anónimo",
+    your_rank: (rank, next) => `Estás en el puesto #${rank} — ¡dona y sube al #${next}!`,
+    your_rank_top: "¡Estás en el Top 5! 🎉",
     footer: (link) => `Datos de <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · revisado automáticamente cada 15 min · <a href="${link}" target="_blank" rel="noopener">Únete al bot de Telegram</a>`,
     install_text: "📲 Instalá WaitRadar como app en tu celular",
     install_btn: "Instalar",
@@ -303,6 +316,10 @@ const I18N = {
     discord_sub: "ideas, bugs, and chat about WaitRadar with more people",
     discord_btn: "💬 Join the Discord",
     roadmap: "more apps and games coming soon — for now WaitRadar tracks Minecraft Preview",
+    top_donors_title: "🏆 Top Donors",
+    anonymous: "Anonymous",
+    your_rank: (rank, next) => `You're #${rank} — donate and climb to #${next}!`,
+    your_rank_top: "You're in the Top 5! 🎉",
     footer: (link) => `Data from <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · checked automatically every 15 min · <a href="${link}" target="_blank" rel="noopener">Join the Telegram bot</a>`,
     install_text: "📲 Install WaitRadar as an app on your phone",
     install_btn: "Install",
@@ -521,8 +538,60 @@ async function render(){
       <a class="discord-btn" href="https://discord.gg/yPVpBv76C" target="_blank" rel="noopener">${t("discord_btn")}</a>
     </div>
 
+    <div class="card" id="topDonorsCard" style="display:none;">
+      <div class="card-title">${t("top_donors_title")}</div>
+      <div id="topDonorsList"></div>
+      <div id="yourRankNote"></div>
+    </div>
+
     <div class="roadmap-note">${t("roadmap")}</div>
   `;
+
+  loadTopDonors();
+}
+
+async function loadTopDonors(){
+  const SUPABASE_URL = "https://lrkykstnjdagmmoshcnj.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_uBT5wGvI0hxWIJALj1E9rg_MEN6Q8WF";
+
+  let donors;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/donors?select=*&order=total_amount.desc`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!res.ok) return;
+    donors = await res.json();
+  }catch(err){ return; }
+
+  if (!donors || donors.length === 0) return;
+
+  const card = document.getElementById("topDonorsCard");
+  const list = document.getElementById("topDonorsList");
+  const rankNote = document.getElementById("yourRankNote");
+  card.style.display = "block";
+
+  const medals = ["🥇", "🥈", "🥉", "4", "5"];
+  const top5 = donors.slice(0, 5);
+  list.innerHTML = top5.map((d, i) => `
+    <div class="top-donors-row">
+      <div class="top-medal">${medals[i]}</div>
+      <div class="top-name">${d.is_anonymous ? t("anonymous") : d.display_name}</div>
+      <div class="top-amount">$${d.total_amount}</div>
+    </div>
+  `).join("");
+
+  // ¿El usuario ya inició sesión antes en settings.html? (mismo localStorage compartido)
+  const saved = localStorage.getItem("waitradar_tg_user");
+  if (!saved) return;
+  const myId = JSON.parse(saved).id;
+  const myIndex = donors.findIndex(d => d.telegram_id === myId);
+  if (myIndex === -1) return;
+
+  if (myIndex < 5){
+    rankNote.innerHTML = `<div class="your-rank-note">${t("your_rank_top")}</div>`;
+  } else {
+    rankNote.innerHTML = `<div class="your-rank-note">${t("your_rank", myIndex + 1, myIndex)}</div>`;
+  }
 }
 
 // ---------- Inicialización ----------
