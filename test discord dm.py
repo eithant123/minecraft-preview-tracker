@@ -1,5 +1,5 @@
 """
-test_discord_dm.py — Manda un DM de prueba por Discord, sin depender
+test_discord_dm.py tes — Manda un DM de prueba por Discord, sin depender
 de que cambie el estado real del cupo. Útil para confirmar que el bot
 y el discord_user_id guardado funcionan bien.
 
