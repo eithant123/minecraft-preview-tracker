@@ -1,0 +1,28 @@
+name: Test Discord DM
+
+on:
+  workflow_dispatch:
+    inputs:
+      discord_user_id:
+        description: "Tu ID de Discord (solo números)"
+        required: true
+        default: "1322225517667024937"
+
+jobs:
+  test-dm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Enviar DM de prueba
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          TEST_DISCORD_USER_ID: ${{ github.event.inputs.discord_user_id }}
+        run: python test_discord_dm.py
