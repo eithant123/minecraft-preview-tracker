@@ -182,13 +182,35 @@ def main() -> None:
 
     data = load_previous_status()
     previous_status = data["status"]
+    pending_status = data.get("pending_status")
 
     data["last_checked"] = now_iso
+
+    if current_status == previous_status:
+        # Sin cambios: limpiamos cualquier pendiente de una lectura rara anterior
+        data["pending_status"] = None
+        data["status"] = current_status
+        print(f"Sin cambios. Estado actual: {current_status}")
+        save_status(data)
+        return
+
+    if current_status != pending_status:
+        # Primera vez que vemos este posible cambio: lo guardamos como "pendiente"
+        # y esperamos al próximo chequeo (~15 min) para confirmarlo antes de avisar.
+        # Esto evita mandar avisos falsos si departures.to tuvo un tropiezo momentáneo.
+        data["pending_status"] = current_status
+        data["status"] = previous_status  # seguimos mostrando el último estado confirmado
+        print(f"Posible cambio detectado ({previous_status} -> {current_status}), esperando confirmación en el próximo chequeo.")
+        save_status(data)
+        return
+
+    # current_status == pending_status: segundo chequeo seguido coincide, confirmamos el cambio
+    data["pending_status"] = None
     data["status"] = current_status
 
     if previous_status != current_status:
         data["history"].append({"status": current_status, "changed_at": now_iso})
-        print(f"Estado cambió: {previous_status} -> {current_status}")
+        print(f"Estado cambió (confirmado): {previous_status} -> {current_status}")
 
         users = load_all_users()
         print(f"Avisando a {len(users)} usuario(s) registrado(s)...")
@@ -227,8 +249,6 @@ def main() -> None:
             # Discord: solo para usuarios premium que guardaron su ID
             if prefs.get("is_premium") and prefs.get("discord_user_id"):
                 send_discord_dm(prefs["discord_user_id"], discord_msg)
-    else:
-        print(f"Sin cambios. Estado actual: {current_status}")
 
     save_status(data)
 
