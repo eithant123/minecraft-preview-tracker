@@ -1,5 +1,5 @@
 {
-  "status": "open",
+  "status": "full",
   "history": [
     {
       "status": "open",
@@ -28,8 +28,12 @@
     {
       "status": "open",
       "changed_at": "2026-09-30T23:48:25+00:00"
+    },
+    {
+      "status": "full",
+      "changed_at": "2026-10-01T21:49:28+00:00"
     }
   ],
-  "last_checked": "2026-10-01T17:06:17+00:00",
-  "pending_status": "full"
+  "last_checked": "2026-10-01T21:49:28+00:00",
+  "pending_status": null
 }
