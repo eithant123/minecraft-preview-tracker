@@ -24,8 +24,16 @@ import requests
 # Link público oficial del beta de Minecraft Preview en TestFlight
 TESTFLIGHT_URL = "https://departures.to/apps/12975"
 
-# Frase que la página muestra cuando el beta NO tiene cupos disponibles
+# Frase que departures.to muestra cuando el beta NO tiene cupos disponibles
 FULL_PHRASE = "Reached capacity"
+
+# Página oficial de Apple (fuente principal) y sus avisos de "sin cupo"
+APPLE_URL = "https://testflight.apple.com/join/qC1ZnReJ"
+APPLE_FULL_PHRASES = (
+    "This beta is full",
+    "isn't accepting any new testers",
+    "isn\u2019t accepting any new testers",
+)
 
 STATUS_FILE = "status.json"
 
@@ -39,11 +47,12 @@ DEFAULT_PREFS = {
     "muted_until": None,
     "is_premium": False,
     "discord_user_id": None,
+    "premium_hasta": None,
 }
 
 
-def check_status() -> str:
-    """Devuelve 'open' o 'full' según el contenido de la página de TestFlight."""
+def _fetch_page(url: str) -> str:
+    """Descarga una página y se asegura de que sea la correcta (no un bloqueo ni una página vacía)."""
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) "
@@ -51,10 +60,31 @@ def check_status() -> str:
             "Mobile/15E148 Safari/604.1"
         )
     }
-    resp = requests.get(TESTFLIGHT_URL, headers=headers, timeout=15)
+    resp = requests.get(url, headers=headers, timeout=15)
     resp.raise_for_status()
     text = resp.text
-    return "full" if FULL_PHRASE in text else "open"
+    if len(text) < 500 or "Just a moment" in text or "Minecraft Preview" not in text:
+        raise ValueError(f"{url} no devolvió la página esperada (posible bloqueo)")
+    return text
+
+
+def check_status() -> str:
+    """Devuelve 'open' o 'full'.
+
+    La página de Apple es la fuente principal: si no se puede leer bien, falla
+    (y no se cambia nada). departures.to es un segundo voto: si CUALQUIERA de
+    las dos dice que está lleno, se considera lleno. Así evitamos falsos "cupo".
+    """
+    apple_text = _fetch_page(APPLE_URL)
+    apple_full = any(p in apple_text for p in APPLE_FULL_PHRASES)
+
+    departures_full = False
+    try:
+        departures_full = FULL_PHRASE in _fetch_page(TESTFLIGHT_URL)
+    except Exception as e:
+        print(f"departures.to no se pudo leer (se usa solo Apple): {e}", file=sys.stderr)
+
+    return "full" if (apple_full or departures_full) else "open"
 
 
 def load_previous_status() -> dict:
@@ -102,7 +132,7 @@ def is_muted(prefs: dict, now_utc: datetime) -> bool:
             until = until.replace(tzinfo=timezone.utc)
         return now_utc < until
     except ValueError:
-        print(f"muted_until inválido en prefs.json: {muted_until!r}", file=sys.stderr)
+        print(f"muted_until inválido: {muted_until!r}", file=sys.stderr)
         return False
 
 
@@ -112,13 +142,29 @@ def is_quiet_hours(prefs: dict, now_utc: datetime) -> bool:
     offset = timedelta(hours=prefs.get("utc_offset_hours", 0))
     local_now = (now_utc + offset).time()
 
-    start = datetime.strptime(prefs["quiet_hours_start"], "%H:%M").time()
-    end = datetime.strptime(prefs["quiet_hours_end"], "%H:%M").time()
+    start = datetime.strptime(str(prefs["quiet_hours_start"])[:5], "%H:%M").time()
+    end = datetime.strptime(str(prefs["quiet_hours_end"])[:5], "%H:%M").time()
 
     if start <= end:
         return start <= local_now < end
     # Rango que cruza medianoche (ej. 23:00 -> 08:00)
     return local_now >= start or local_now < end
+
+
+def is_premium_active(prefs: dict, now_utc: datetime) -> bool:
+    if not prefs.get("is_premium"):
+        return False
+    premium_hasta = prefs.get("premium_hasta")
+    if not premium_hasta:
+        return True  # sin fecha = de por vida
+    try:
+        until = datetime.fromisoformat(str(premium_hasta).replace("Z", "+00:00"))
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=timezone.utc)
+        return now_utc < until
+    except ValueError:
+        print(f"premium_hasta inválido: {premium_hasta!r}", file=sys.stderr)
+        return False
 
 
 def send_telegram(chat_id, message: str) -> None:
@@ -128,7 +174,9 @@ def send_telegram(chat_id, message: str) -> None:
         return
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
-        requests.post(url, data={"chat_id": chat_id, "text": message}, timeout=15)
+        resp = requests.post(url, data={"chat_id": chat_id, "text": message}, timeout=15)
+        if not resp.ok:
+            print(f"Telegram rechazó el aviso a {chat_id}: {resp.status_code} {resp.text}", file=sys.stderr)
     except Exception as e:
         print(f"No se pudo avisar a {chat_id}: {e}", file=sys.stderr)
 
@@ -155,7 +203,9 @@ def send_discord_dm(discord_user_id: str, message: str) -> None:
             headers=headers,
             timeout=15,
         )
-        dm_resp.raise_for_status()
+        if not dm_resp.ok:
+            print(f"Discord no abrió el DM con {discord_user_id}: {dm_resp.status_code} {dm_resp.text}", file=sys.stderr)
+            return
         channel_id = dm_resp.json()["id"]
 
         # 2. Mandar el mensaje a ese canal
@@ -165,9 +215,46 @@ def send_discord_dm(discord_user_id: str, message: str) -> None:
             headers=headers,
             timeout=15,
         )
-        msg_resp.raise_for_status()
+        if not msg_resp.ok:
+            print(f"Discord no entregó el DM a {discord_user_id}: {msg_resp.status_code} {msg_resp.text}", file=sys.stderr)
     except Exception as e:
         print(f"No se pudo mandar DM de Discord a {discord_user_id}: {e}", file=sys.stderr)
+
+
+def notify_user(u: dict, now: datetime, current_status: str) -> None:
+    prefs = dict(DEFAULT_PREFS)
+    # Ignoramos valores nulos para no pisar los valores por defecto
+    prefs.update({k: v for k, v in u.items() if v is not None})
+    chat_id = u.get("telegram_id")
+
+    if is_muted(prefs, now):
+        print(f"{chat_id}: silenciado manualmente, no se avisa.")
+        return
+    if is_quiet_hours(prefs, now):
+        print(f"{chat_id}: en horario de silencio, no se avisa.")
+        return
+    if current_status == "open" and not prefs.get("notify_on_open", True):
+        print(f"{chat_id}: notify_on_open desactivado, no se avisa.")
+        return
+    if current_status == "full" and not prefs.get("notify_on_close", True):
+        print(f"{chat_id}: notify_on_close desactivado, no se avisa.")
+        return
+
+    if current_status == "open":
+        telegram_msg = (
+            "🟢 ¡Hay cupos en Minecraft Preview (TestFlight)! "
+            f"Entra ya: {TESTFLIGHT_URL}"
+        )
+        discord_msg = f"🟢 ¡Hay cupos en Minecraft Preview! Entra ya: {TESTFLIGHT_URL}"
+    else:
+        telegram_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
+        discord_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
+
+    send_telegram(chat_id, telegram_msg)
+
+    # Discord: solo para usuarios premium vigentes que guardaron su ID
+    if is_premium_active(prefs, now) and prefs.get("discord_user_id"):
+        send_discord_dm(str(prefs["discord_user_id"]), discord_msg)
 
 
 def main() -> None:
@@ -197,60 +284,28 @@ def main() -> None:
     if current_status != pending_status:
         # Primera vez que vemos este posible cambio: lo guardamos como "pendiente"
         # y esperamos al próximo chequeo (~15 min) para confirmarlo antes de avisar.
-        # Esto evita mandar avisos falsos si departures.to tuvo un tropiezo momentáneo.
         data["pending_status"] = current_status
         data["status"] = previous_status  # seguimos mostrando el último estado confirmado
         print(f"Posible cambio detectado ({previous_status} -> {current_status}), esperando confirmación en el próximo chequeo.")
         save_status(data)
         return
 
-    # current_status == pending_status: segundo chequeo seguido coincide, confirmamos el cambio
+    # Segundo chequeo seguido coincide: confirmamos el cambio
     data["pending_status"] = None
     data["status"] = current_status
+    data["history"].append({"status": current_status, "changed_at": now_iso})
+    print(f"Estado cambió (confirmado): {previous_status} -> {current_status}")
 
-    if previous_status != current_status:
-        data["history"].append({"status": current_status, "changed_at": now_iso})
-        print(f"Estado cambió (confirmado): {previous_status} -> {current_status}")
-
-        users = load_all_users()
-        print(f"Avisando a {len(users)} usuario(s) registrado(s)...")
-
-        for u in users:
-            prefs = dict(DEFAULT_PREFS)
-            prefs.update(u)
-            chat_id = u.get("telegram_id")
-
-            if is_muted(prefs, now):
-                print(f"{chat_id}: silenciado manualmente, no se avisa.")
-                continue
-            if is_quiet_hours(prefs, now):
-                print(f"{chat_id}: en horario de silencio, no se avisa.")
-                continue
-            if current_status == "open" and not prefs.get("notify_on_open", True):
-                print(f"{chat_id}: notify_on_open desactivado, no se avisa.")
-                continue
-            if current_status == "full" and not prefs.get("notify_on_close", True):
-                print(f"{chat_id}: notify_on_close desactivado, no se avisa.")
-                continue
-
-            discord_msg = None
-            if current_status == "open":
-                telegram_msg = (
-                    "🟢 ¡Hay cupos en Minecraft Preview (TestFlight)! "
-                    f"Entra ya: {TESTFLIGHT_URL}"
-                )
-                discord_msg = f"🟢 ¡Hay cupos en Minecraft Preview! Entra ya: {TESTFLIGHT_URL}"
-            else:
-                telegram_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
-                discord_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
-
-            send_telegram(chat_id, telegram_msg)
-
-            # Discord: solo para usuarios premium que guardaron su ID
-            if prefs.get("is_premium") and prefs.get("discord_user_id"):
-                send_discord_dm(prefs["discord_user_id"], discord_msg)
-
+    # Guardamos ANTES de avisar: si algo falla al avisar, el aviso no se repite en el próximo chequeo
     save_status(data)
+
+    users = load_all_users()
+    print(f"Avisando a {len(users)} usuario(s) registrado(s)...")
+    for u in users:
+        try:
+            notify_user(u, now, current_status)
+        except Exception as e:
+            print(f"Error avisando a {u.get('telegram_id')}: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

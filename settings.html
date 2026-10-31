@@ -165,6 +165,10 @@ const BOT_USERNAME = "EithanCupoBot";
 let user = null;
 let prefs = null;
 
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
 const I18N = {
   es: {
     back: "← volver",
@@ -366,6 +370,12 @@ async function loadPrefsAndRender(){
     return;
   }
   prefs = data;
+  // Zona horaria del navegador, para que el horario de silencio use tu hora real
+  const tzOffset = Math.round(-new Date().getTimezoneOffset() / 60);
+  if ("utc_offset_hours" in prefs && prefs.utc_offset_hours !== tzOffset){
+    prefs.utc_offset_hours = tzOffset;
+    savePrefs();
+  }
   render();
 }
 
@@ -381,14 +391,14 @@ function render(){
   main.innerHTML = `
     <div class="profile-card">
       ${user.photo_url
-        ? `<img class="${activePremium ? "premium" : ""}" src="${user.photo_url}" alt="">`
-        : `<div class="avatar-fallback ${activePremium ? "premium" : ""}">${(user.first_name || "?")[0].toUpperCase()}</div>`}
+        ? `<img class="${activePremium ? "premium" : ""}" src="${esc(user.photo_url)}" alt="">`
+        : `<div class="avatar-fallback ${activePremium ? "premium" : ""}">${esc((user.first_name || "?")[0].toUpperCase())}</div>`}
       <div>
         <div class="name-row">
-          <span class="name">${user.first_name || ""}${user.last_name ? " " + user.last_name : ""}</span>
+          <span class="name">${esc(user.first_name || "")}${user.last_name ? " " + esc(user.last_name) : ""}</span>
           ${activePremium ? `<span class="profile-badge">${t("premium_tag")}</span>` : ""}
         </div>
-        <div class="handle">${user.username ? "@" + user.username : t("no_username")}</div>
+        <div class="handle">${user.username ? "@" + esc(user.username) : t("no_username")}</div>
       </div>
       <button class="logout-btn" id="logoutBtn">${t("logout")}</button>
     </div>
@@ -405,7 +415,7 @@ function render(){
              <div class="discord-id-label">${t("discord_id_label")}</div>
              <div class="discord-id-help">${t("discord_id_help")}</div>
              <div class="discord-id-input-row">
-               <input type="text" id="discordIdInput" placeholder="${t("discord_id_placeholder")}" value="${prefs.discord_user_id || ""}">
+               <input type="text" id="discordIdInput" placeholder="${t("discord_id_placeholder")}" value="${esc(prefs.discord_user_id || "")}">
                <button id="discordIdSaveBtn">${t("discord_id_save")}</button>
              </div>
            </div>`
@@ -491,10 +501,14 @@ function render(){
     renderLogin();
   });
 
-  document.getElementById("discordIdSaveBtn")?.addEventListener("click", () => {
+  document.getElementById("discordIdSaveBtn")?.addEventListener("click", async () => {
     const input = document.getElementById("discordIdInput");
-    prefs.discord_user_id = input.value.trim() || null;
-    savePrefs();
+    const raw = input.value.trim();
+    if (raw && !/^\d{17,20}$/.test(raw)){ input.style.borderColor = "#e0453a"; return; }
+    input.style.borderColor = "";
+    prefs.discord_user_id = raw || null;
+    const ok = await savePrefs();
+    if (!ok){ input.style.borderColor = "#e0453a"; return; }
     const btn = document.getElementById("discordIdSaveBtn");
     btn.textContent = t("discord_id_saved");
     btn.classList.add("saved");
@@ -530,9 +544,14 @@ function render(){
 }
 
 async function savePrefs(){
-  const { telegram_id, created_at, ...fields } = prefs;
+  // Solo mandamos lo que el usuario puede cambiar (nunca is_premium ni premium_hasta)
+  const allowed = ["notify_on_open", "notify_on_close", "quiet_hours_enabled", "quiet_hours_start",
+                   "quiet_hours_end", "muted_until", "utc_offset_hours", "discord_user_id"];
+  const fields = {};
+  for (const k of allowed) if (k in prefs) fields[k] = prefs[k];
   const { error } = await sb.from("user_prefs").update(fields).eq("telegram_id", user.id);
-  if (error) console.error("Error guardando:", error);
+  if (error){ console.error("Error guardando:", error); return false; }
+  return true;
 }
 
 function muteStatusText(){

@@ -413,6 +413,10 @@ function buildTimeline(history, currentStatus, lastChecked){
   return days;
 }
 
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
 let cachedData = null;
 
 async function render(){
@@ -500,7 +504,7 @@ async function render(){
 
     <div class="bottom-row">
       <div class="bell">${t("bell_text", "https://t.me/EithanCupoBot")}</div>
-      <div class="share-btn" onclick="navigator.share ? navigator.share({title:'WaitRadar', text:'${isOpen ? t("share_text_open") : t("share_text_full")}', url:location.href}) : alert('${t("share_fallback")}' + location.href)">${t("share_btn")}</div>
+      <div class="share-btn" id="shareBtn">${t("share_btn")}</div>
     </div>
 
     <div class="card tip-card">
@@ -539,13 +543,19 @@ async function render(){
     </div>
 
     <div class="card" id="topDonorsCard" style="display:none;">
-      <div class="card-title">${t("top_donors_title")}</div>
+      <div class="card-label">${t("top_donors_title")}</div>
       <div id="topDonorsList"></div>
       <div id="yourRankNote"></div>
     </div>
 
     <div class="roadmap-note">${t("roadmap")}</div>
   `;
+
+  document.getElementById("shareBtn").addEventListener("click", () => {
+    const text = isOpen ? t("share_text_open") : t("share_text_full");
+    if (navigator.share) navigator.share({ title: "WaitRadar", text, url: location.href }).catch(() => {});
+    else alert(t("share_fallback") + location.href);
+  });
 
   loadTopDonors();
 }
@@ -575,8 +585,8 @@ async function loadTopDonors(){
   list.innerHTML = top5.map((d, i) => `
     <div class="top-donors-row">
       <div class="top-medal">${medals[i]}</div>
-      <div class="top-name">${d.is_anonymous ? t("anonymous") : d.display_name}</div>
-      <div class="top-amount">$${d.total_amount}</div>
+      <div class="top-name">${d.is_anonymous ? t("anonymous") : esc(d.display_name)}</div>
+      <div class="top-amount">$${Number(d.total_amount) || 0}</div>
     </div>
   `).join("");
 
