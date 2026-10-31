@@ -265,6 +265,10 @@ def main() -> None:
         current_status = check_status()
     except Exception as e:
         print(f"Error revisando TestFlight: {e}", file=sys.stderr)
+        # Guardamos el motivo (sin tocar last_checked, que solo cambia con revisiones reales)
+        failed = load_previous_status()
+        failed["last_error"] = {"at": now_iso, "message": str(e)[:200]}
+        save_status(failed)
         sys.exit(0)  # no rompemos el workflow por un error de red puntual
 
     data = load_previous_status()
@@ -272,6 +276,7 @@ def main() -> None:
     pending_status = data.get("pending_status")
 
     data["last_checked"] = now_iso
+    data["last_error"] = None
 
     if current_status == previous_status:
         # Sin cambios: limpiamos cualquier pendiente de una lectura rara anterior

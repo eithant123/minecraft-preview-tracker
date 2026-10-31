@@ -165,6 +165,8 @@
   }
   .tip-btn:active{ background:rgba(232,185,62,.25); }
 
+  .stale-note{ font-size:11.5px; color:var(--gold); line-height:1.5; margin-bottom:14px; padding:12px 14px;
+    background:rgba(232,185,62,.08); border:1px solid rgba(232,185,62,.35); border-radius:10px; }
   .roadmap-note{ font-size:10.5px; color:var(--dim); text-align:center; margin-bottom:24px; }
 
   footer{ font-size:10px; color:var(--dim); text-align:center; padding:16px 20px 30px; }
@@ -228,6 +230,8 @@ const I18N = {
     settings_title: "Configuración",
     error_loading: (msg) => `No se pudo cargar el estado (${msg}).<br>Verificá que status.json esté publicado junto a esta página.`,
     no_connection: "Sin conexión con los datos",
+    stale_label: "Datos desactualizados",
+    stale_note: (rel) => `⚠️ No se ha podido verificar el cupo desde ${rel}. El estado de abajo puede no ser el real.`,
     live_now: "Estado en tiempo real",
     updated: (rel) => `Actualizado ${rel}`,
     days_open_label: "Días con cupo",
@@ -282,6 +286,8 @@ const I18N = {
     settings_title: "Settings",
     error_loading: (msg) => `Couldn't load status (${msg}).<br>Check that status.json is published alongside this page.`,
     no_connection: "No connection to data",
+    stale_label: "Outdated data",
+    stale_note: (rel) => `⚠️ The slot status couldn't be verified since ${rel}. The status below may not be accurate.`,
     live_now: "Live status",
     updated: (rel) => `Updated ${rel}`,
     days_open_label: "Days with a slot",
@@ -444,8 +450,11 @@ async function render(){
   const history = data.history || [];
   const lastChecked = data.last_checked;
 
-  liveDot.className = "live-dot " + (isOpen ? "up" : "down");
-  liveLabel.textContent = t("live_now");
+  // Si la última revisión real tiene más de 45 min, no presentamos el estado como "en tiempo real"
+  const ageMin = lastChecked ? (Date.now() - new Date(lastChecked).getTime()) / 60000 : Infinity;
+  const stale = ageMin > 45;
+  liveDot.className = "live-dot" + (stale ? "" : (isOpen ? " up" : " down"));
+  liveLabel.textContent = stale ? t("stale_label") : t("live_now");
   updatedLabel.textContent = lastChecked ? t("updated", fmtRelative(lastChecked)) : "";
 
   const lastFullEntry = [...history].reverse().find(h => h.status === "full");
@@ -476,6 +485,7 @@ async function render(){
   `;
 
   main.innerHTML = `
+    ${stale ? `<div class="stale-note">${t("stale_note", fmtRelative(lastChecked))}</div>` : ""}
     <div class="row">
       <div class="card">
         <div class="card-label">${isOpen ? t("days_open_label") : t("days_full_label")}</div>
@@ -497,7 +507,6 @@ async function render(){
         <div class="status-desc">
           ${isOpen ? t("desc_open") : t("desc_full")}
           <br><br>${t("last_check")} ${fmtExact(lastChecked)}
-          <br>${t("next_check")}${fmtExactPlus15(lastChecked)}
         </div>
       </div>
     </div>
