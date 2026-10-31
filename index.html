@@ -604,6 +604,24 @@ async function loadTopDonors(){
   }
 }
 
+// ---------- Auto-refresco ----------
+// Cada minuto (y al volver a abrir la app) pide status.json y solo redibuja si hay datos nuevos
+async function refreshStatus(){
+  try{
+    const res = await fetch(STATUS_URL + "?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!cachedData || data.last_checked !== cachedData.last_checked || data.status !== cachedData.status){
+      cachedData = data;
+      render();
+    } else if (data.last_checked){
+      document.getElementById("updatedLabel").textContent = t("updated", fmtRelative(data.last_checked));
+    }
+  }catch(e){}
+}
+setInterval(refreshStatus, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshStatus(); });
+
 // ---------- Inicialización ----------
 setLang(currentLang);
 
