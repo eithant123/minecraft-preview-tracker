@@ -136,6 +136,7 @@
   #telegramWidget{ display:flex; justify-content:center; }
 
   .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:40px 20px; }
+  :focus-visible{ outline:2px solid var(--sky); outline-offset:2px; }
 </style>
 </head>
 <body>
@@ -188,7 +189,7 @@ const I18N = {
     upsell_1: "✓ Revisión cada 5 min (en vez de 15)",
     upsell_2: "✓ Avisos también por Discord",
     upsell_3: "✓ Insignia dorada en tu perfil",
-    upsell_4: "✓ Aparecés en el Top Donadores",
+    upsell_4: "✓ Apareces en el Top Donadores",
     price_month: "1 mes",
     price_year: "1 año",
     price_life: "de por vida",
@@ -453,14 +454,14 @@ function render(){
           <div class="row-label">${t("on_open_label")}</div>
           <div class="row-desc">${t("on_open_desc")}</div>
         </div>
-        <div class="switch ${prefs.notify_on_open ? "on" : ""}" data-key="notify_on_open"></div>
+        <div class="switch ${prefs.notify_on_open ? "on" : ""}" data-key="notify_on_open" role="switch" tabindex="0" aria-checked="${!!prefs.notify_on_open}"></div>
       </div>
       <div class="row">
         <div>
           <div class="row-label">${t("on_close_label")}</div>
           <div class="row-desc">${t("on_close_desc")}</div>
         </div>
-        <div class="switch ${prefs.notify_on_close ? "on" : ""}" data-key="notify_on_close"></div>
+        <div class="switch ${prefs.notify_on_close ? "on" : ""}" data-key="notify_on_close" role="switch" tabindex="0" aria-checked="${!!prefs.notify_on_close}"></div>
       </div>
     </div>
 
@@ -471,7 +472,7 @@ function render(){
           <div class="row-label">${t("quiet_enable_label")}</div>
           <div class="row-desc">${t("quiet_enable_desc")}</div>
         </div>
-        <div class="switch ${prefs.quiet_hours_enabled ? "on" : ""}" data-key="quiet_hours_enabled"></div>
+        <div class="switch ${prefs.quiet_hours_enabled ? "on" : ""}" data-key="quiet_hours_enabled" role="switch" tabindex="0" aria-checked="${!!prefs.quiet_hours_enabled}"></div>
       </div>
       <div class="row">
         <div class="row-label">${t("quiet_from")}</div>
@@ -523,6 +524,10 @@ function render(){
       savePrefs();
     });
   });
+
+  main.querySelectorAll(".switch").forEach(sw => sw.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " "){ e.preventDefault(); sw.click(); }
+  }));
 
   document.getElementById("quietStart").addEventListener("change", (e) => {
     prefs.quiet_hours_start = e.target.value;

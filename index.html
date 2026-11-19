@@ -7,6 +7,11 @@
 <meta name="description" content="Estado en vivo del beta de Minecraft Preview en TestFlight. Avisos gratis por Telegram cuando se abre un cupo.">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0c1015">
+<meta property="og:type" content="website">
+<meta property="og:title" content="WaitRadar — Minecraft Preview">
+<meta property="og:description" content="Estado en vivo del beta de Minecraft Preview en TestFlight. Avisos gratis por Telegram cuando se abre un cupo.">
+<meta property="og:image" content="https://eithant123.github.io/minecraft-preview-tracker/icon-512.png">
+<meta name="twitter:card" content="summary">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -187,6 +192,9 @@
     background:var(--grass-dark); color:#fff; border:none; border-radius:8px; padding:8px 14px;
   }
   .install-dismiss{ flex-shrink:0; color:var(--dim); cursor:pointer; font-size:14px; padding:4px 8px; }
+  .share-btn{ font-family:inherit; }
+  :focus-visible{ outline:2px solid var(--sky); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
@@ -202,7 +210,7 @@
         <button class="lang-btn" id="langEs">ES</button>
         <button class="lang-btn" id="langEn">EN</button>
       </div>
-      <a href="./settings.html" style="color:var(--dim); text-decoration:none; font-size:16px;" id="settingsLink">⚙️</a>
+      <a href="./settings.html" style="color:var(--dim); text-decoration:none; font-size:16px;" id="settingsLink" aria-label="Configuración">⚙️</a>
     </div>
     <div class="updated" id="updatedLabel"></div>
   </header>
@@ -228,7 +236,7 @@ const I18N = {
     loading_status: "Cargando estado…",
     loading_data: "Cargando datos de status.json…",
     settings_title: "Configuración",
-    error_loading: (msg) => `No se pudo cargar el estado (${msg}).<br>Verificá que status.json esté publicado junto a esta página.`,
+    error_loading: (msg) => `No se pudo cargar el estado (${msg}).<br>Verifica que status.json esté publicado junto a esta página.`,
     no_connection: "Sin conexión con los datos",
     stale_label: "Datos desactualizados",
     stale_note: (rel) => `⚠️ No se ha podido verificar el cupo desde ${rel}. El estado de abajo puede no ser el real.`,
@@ -236,7 +244,7 @@ const I18N = {
     updated: (rel) => `Actualizado ${rel}`,
     days_open_label: "Días con cupo",
     days_full_label: "Días sin cupo",
-    days_open_sub: "Días con cupo disponible — ¡entrá ya!",
+    days_open_sub: "Días con cupo disponible — ¡entra ya!",
     days_full_sub: "Racha actual sin cupo (desde el último cierre)",
     chart_title: "ACTIVIDAD DE CUPOS · ÚLTIMOS 30 DÍAS",
     today: "hoy",
@@ -245,7 +253,7 @@ const I18N = {
     minecraft_preview: "Minecraft Preview",
     status_open: "Cupo disponible",
     status_full: "Sin cupos",
-    desc_open: `Hay cupo ahora mismo. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Entrá al beta</a>.`,
+    desc_open: `Hay cupo ahora mismo. <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">Entra al beta</a>.`,
     desc_full: "No hay cupos disponibles en este momento.",
     last_check: "Última revisión:",
     next_check: "Próxima revisión: ~",
@@ -253,7 +261,7 @@ const I18N = {
     share_btn: "↗ Compartir estado",
     share_text_open: "Hay cupo en Minecraft Preview ahora",
     share_text_full: "Estado del beta de Minecraft Preview",
-    share_fallback: "Copiá el link de esta página para compartir: ",
+    share_fallback: "Copia el link de esta página para compartir: ",
     support_title: "Apoya el proyecto",
     support_text: "Este sitio y el bot son gratis y los mantengo yo solo, en mi tiempo libre. Si te sirvió, una propina ayuda a seguir mejorando el diseño y agregando más juegos. Nada es obligatorio 🙂",
     other_amount: "💙 Otro monto",
@@ -271,9 +279,9 @@ const I18N = {
     your_rank: (rank, next) => `Estás en el puesto #${rank} — ¡dona y sube al #${next}!`,
     your_rank_top: (rank) => `¡Estás en el puesto #${rank}! 🎉`,
     footer: (link) => `Datos de <a href="https://testflight.apple.com/join/qC1ZnReJ" target="_blank" rel="noopener">testflight.apple.com</a> · revisado automáticamente cada 15 min · <a href="${link}" target="_blank" rel="noopener">Únete al bot de Telegram</a>`,
-    install_text: "📲 Instalá WaitRadar como app en tu celular",
+    install_text: "📲 Instala WaitRadar como app en tu celular",
     install_btn: "Instalar",
-    install_ios: `📲 En iPhone: tocá <b>Compartir</b> ↑ y luego <b>"Agregar a pantalla de inicio"</b>`,
+    install_ios: `📲 En iPhone: toca <b>Compartir</b> ↑ y luego <b>"Agregar a pantalla de inicio"</b>`,
     rel_seconds: "hace segundos",
     rel_min: (n) => `hace ${n} min`,
     rel_hr: (n) => `hace ${n} h`,
@@ -356,6 +364,9 @@ function setLang(lang){
   document.getElementById("langEs").classList.toggle("active", lang === "es");
   document.getElementById("langEn").classList.toggle("active", lang === "en");
   document.getElementById("settingsLink").title = t("settings_title");
+  document.getElementById("settingsLink").setAttribute("aria-label", t("settings_title"));
+  const it = document.getElementById("installText"); if (it) it.textContent = t("install_text");
+  const ib = document.getElementById("installBtn"); if (ib) ib.textContent = t("install_btn");
   document.getElementById("loadMsg").textContent = t("loading_data");
   document.getElementById("footerText").innerHTML = t("footer", "https://t.me/EithanCupoBot");
   render();
@@ -513,7 +524,7 @@ async function render(){
 
     <div class="bottom-row">
       <div class="bell">${t("bell_text", "https://t.me/EithanCupoBot")}</div>
-      <div class="share-btn" id="shareBtn">${t("share_btn")}</div>
+      <button type="button" class="share-btn" id="shareBtn">${t("share_btn")}</button>
     </div>
 
     <div class="card tip-card">
