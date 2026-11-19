@@ -17,6 +17,7 @@ respeta:
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -175,6 +176,10 @@ def send_telegram(chat_id, message: str) -> None:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
         resp = requests.post(url, data={"chat_id": chat_id, "text": message}, timeout=15)
+        if resp.status_code == 429:  # Telegram pidió esperar: reintentamos una vez
+            wait = resp.json().get("parameters", {}).get("retry_after", 2)
+            time.sleep(min(int(wait), 30))
+            resp = requests.post(url, data={"chat_id": chat_id, "text": message}, timeout=15)
         if not resp.ok:
             print(f"Telegram rechazó el aviso a {chat_id}: {resp.status_code} {resp.text}", file=sys.stderr)
     except Exception as e:
@@ -243,9 +248,9 @@ def notify_user(u: dict, now: datetime, current_status: str) -> None:
     if current_status == "open":
         telegram_msg = (
             "🟢 ¡Hay cupos en Minecraft Preview (TestFlight)! "
-            f"Entra ya: {TESTFLIGHT_URL}"
+            f"Entra ya: {APPLE_URL}"
         )
-        discord_msg = f"🟢 ¡Hay cupos en Minecraft Preview! Entra ya: {TESTFLIGHT_URL}"
+        discord_msg = f"🟢 ¡Hay cupos en Minecraft Preview! Entra ya: {APPLE_URL}"
     else:
         telegram_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
         discord_msg = "🔴 El beta de Minecraft Preview se llenó de nuevo."
@@ -272,7 +277,8 @@ def main() -> None:
         sys.exit(0)  # no rompemos el workflow por un error de red puntual
 
     data = load_previous_status()
-    previous_status = data["status"]
+    data.setdefault("history", [])
+    previous_status = data.get("status")
     pending_status = data.get("pending_status")
 
     data["last_checked"] = now_iso
@@ -299,6 +305,7 @@ def main() -> None:
     data["pending_status"] = None
     data["status"] = current_status
     data["history"].append({"status": current_status, "changed_at": now_iso})
+    data["history"] = data["history"][-500:]  # evita que el archivo crezca sin límite
     print(f"Estado cambió (confirmado): {previous_status} -> {current_status}")
 
     # Guardamos ANTES de avisar: si algo falla al avisar, el aviso no se repite en el próximo chequeo
@@ -309,6 +316,7 @@ def main() -> None:
     for u in users:
         try:
             notify_user(u, now, current_status)
+            time.sleep(0.1)  # respeta el límite de mensajes por segundo de Telegram
         except Exception as e:
             print(f"Error avisando a {u.get('telegram_id')}: {e}", file=sys.stderr)
 
