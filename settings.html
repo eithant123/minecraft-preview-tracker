@@ -137,6 +137,15 @@
 
   .load-msg{ text-align:center; color:var(--dim); font-size:11px; padding:40px 20px; }
   :focus-visible{ outline:2px solid var(--sky); outline-offset:2px; }
+  .reg-card{ border-color:rgba(91,156,62,.4); background:rgba(91,156,62,.08); }
+  .reg-title{ font-size:13px; font-weight:700; color:var(--grass); margin-bottom:6px; }
+  .reg-text{ font-size:11px; color:var(--dim); line-height:1.6; margin-bottom:12px; }
+  .reg-btn + .reg-btn{ margin-top:8px; }
+  .reg-btn{ display:block; text-align:center; text-decoration:none; font-size:12px; font-weight:700; padding:10px; border-radius:8px; background:rgba(74,144,217,.15); color:var(--sky); border:1px solid rgba(74,144,217,.4); }
+  .login-warn{ text-align:left; background:rgba(232,185,62,.08); border:1px solid rgba(232,185,62,.35); border-radius:10px; padding:12px 14px; margin-bottom:20px; }
+  .login-warn-title{ font-size:12px; font-weight:700; color:var(--gold); margin-bottom:8px; }
+  .login-warn div + div{ margin-top:6px; }
+  .login-warn .step{ font-size:11px; color:var(--text); line-height:1.5; }
 </style>
 </head>
 <body>
@@ -175,9 +184,17 @@ const I18N = {
     back: "← volver",
     header_sub: "configuración",
     loading: "Cargando…",
+    reg_title: "✅ Ya estás registrado",
+    reg_text: "No tienes que hacer nada más. Cuando cambie el cupo de Minecraft Preview, el bot te avisa por Telegram. El mensaje de bienvenida puede tardar unos minutos en llegar.",
+    reg_btn: "Abrir el bot en Telegram",
+    reg_home: "Volver a la página principal",
     login_title: "Iniciar sesión",
     login_text: "Inicia sesión con tu cuenta de Telegram para ver y ajustar tus propias notificaciones de WaitRadar.",
-    loading_prefs: "Cargando tu configuración…",
+    warn_title: "⚠️ Antes de iniciar sesión",
+    warn_1: "1. Toca el botón e ingresa el número de teléfono vinculado a tu cuenta de Telegram.",
+    warn_2: "2. Abre Telegram y espera a que te llegue el mensaje de Telegram. Cuando aparezca el botón “Confirmar”, tócalo.",
+    warn_3: "3. Vuelve a esta página y espera unos segundos. No la cierres hasta ver “Ya estás registrado”: si sales muy rápido, el registro se cancela y no te llegarán los avisos.",
+    loading_prefs: "Cargando tu configuración… no cierres esta página.",
     db_error: "No se pudo conectar con la base de datos.<br>Intenta de nuevo en un momento.",
     logout: "Cerrar sesión",
     no_username: "sin @usuario",
@@ -226,9 +243,17 @@ const I18N = {
     back: "← back",
     header_sub: "settings",
     loading: "Loading…",
+    reg_title: "✅ You're registered",
+    reg_text: "Nothing else to do. When the Minecraft Preview slot status changes, the bot alerts you on Telegram. The welcome message can take a few minutes to arrive.",
+    reg_btn: "Open the bot on Telegram",
+    reg_home: "Back to the main page",
     login_title: "Log in",
     login_text: "Log in with your Telegram account to view and adjust your own WaitRadar notifications.",
-    loading_prefs: "Loading your settings…",
+    warn_title: "⚠️ Before you log in",
+    warn_1: "1. Tap the button and enter the phone number linked to your Telegram account.",
+    warn_2: "2. Open Telegram and wait for the message from Telegram to arrive. When the “Confirm” button appears, tap it.",
+    warn_3: "3. Come back to this page and wait a few seconds. Don't close it until you see “You're registered”: if you leave too soon, the sign-up is cancelled and you won't get alerts.",
+    loading_prefs: "Loading your settings… don't close this page.",
     db_error: "Couldn't connect to the database.<br>Try again in a moment.",
     logout: "Log out",
     no_username: "no @username",
@@ -318,6 +343,12 @@ function renderLogin(){
     <div class="card login-card">
       <div class="card-title">${t("login_title")}</div>
       <p>${t("login_text")}</p>
+      <div class="login-warn">
+        <div class="login-warn-title">${t("warn_title")}</div>
+        <div class="step">${t("warn_1")}</div>
+        <div class="step">${t("warn_2")}</div>
+        <div class="step">${t("warn_3")}</div>
+      </div>
       <div id="telegramWidget"></div>
     </div>
   `;
@@ -402,6 +433,13 @@ function render(){
         <div class="handle">${user.username ? "@" + esc(user.username) : t("no_username")}</div>
       </div>
       <button class="logout-btn" id="logoutBtn">${t("logout")}</button>
+    </div>
+
+    <div class="card reg-card">
+      <div class="reg-title">${t("reg_title")}</div>
+      <div class="reg-text">${t("reg_text")}</div>
+      <a class="reg-btn" href="https://t.me/${BOT_USERNAME}" target="_blank" rel="noopener">${t("reg_btn")}</a>
+      <a class="reg-btn" href="./index.html">${t("reg_home")}</a>
     </div>
 
     <div class="card">
