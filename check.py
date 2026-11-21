@@ -262,9 +262,68 @@ def notify_user(u: dict, now: datetime, current_status: str) -> None:
         send_discord_dm(str(prefs["discord_user_id"]), discord_msg)
 
 
+WELCOME_MSG = (
+    "👋 ¡Bienvenido a WaitRadar{name}!\n\n"
+    "Ya estás registrado. Vigilo el beta de Minecraft Preview en TestFlight "
+    "y te aviso por aquí apenas se abre o se cierra un cupo. "
+    "No tienes que hacer nada más.\n\n"
+    "⚙️ Ajusta tus avisos (horario de silencio, silenciar, qué cambios avisar) "
+    "en la página:\n"
+    "https://eithant123.github.io/minecraft-preview-tracker/settings.html\n\n"
+    "⭐ En la misma página hay un plan premium con avisos también por mensaje "
+    "privado de Discord.\n"
+    "📱 Próximamente: más canales, como WhatsApp."
+)
+
+
+def mark_welcomed(telegram_id, now_iso: str) -> bool:
+    """Marca al usuario como ya saludado. Devuelve True si se guardó."""
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        return False
+    try:
+        resp = requests.patch(
+            f"{url}/rest/v1/user_prefs",
+            params={"telegram_id": f"eq.{telegram_id}"},
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            json={"welcomed_at": now_iso},
+            timeout=10,
+        )
+        return resp.ok
+    except Exception as e:
+        print(f"No se pudo marcar como saludado: {e}", file=sys.stderr)
+        return False
+
+
+def send_welcomes(now_iso: str) -> None:
+    """Saluda a los usuarios nuevos (welcomed_at vacío). Si la columna welcomed_at
+    no existe todavía en Supabase, no hace nada (así nunca repite saludos)."""
+    for u in load_all_users():
+        if "welcomed_at" not in u or u.get("welcomed_at") or not u.get("telegram_id"):
+            continue
+        # Primero se marca y solo si se guardó se envía: así el saludo no se repite nunca
+        if not mark_welcomed(u["telegram_id"], now_iso):
+            print("No se pudo marcar a un usuario nuevo; se omite su saludo.", file=sys.stderr)
+            continue
+        name = (u.get("telegram_first_name") or "").strip()
+        send_telegram(u["telegram_id"], WELCOME_MSG.format(name=f", {name}" if name else ""))
+        time.sleep(0.1)
+
+
 def main() -> None:
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat(timespec="seconds")
+
+    try:
+        send_welcomes(now_iso)
+    except Exception as e:
+        print(f"Error enviando saludos: {e}", file=sys.stderr)
 
     try:
         current_status = check_status()
