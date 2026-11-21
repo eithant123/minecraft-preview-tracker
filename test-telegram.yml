@@ -1,0 +1,28 @@
+name: Test Telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      telegram_id:
+        description: "Tu Telegram ID (solo números)"
+        required: true
+
+jobs:
+  test-telegram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Enviar mensaje de prueba
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TEST_TELEGRAM_ID: ${{ github.event.inputs.telegram_id }}
+        run: python test_telegram.py
