@@ -1,0 +1,35 @@
+name: Test avisos a todos
+
+on:
+  workflow_dispatch:
+    inputs:
+      enviar:
+        description: "no = solo listar usuarios | si = mandar mensaje de prueba a TODOS"
+        required: true
+        default: "no"
+        type: choice
+        options:
+          - "no"
+          - "si"
+
+jobs:
+  test-notify-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Probar avisos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          ENVIAR: ${{ github.event.inputs.enviar }}
+        run: python .github/workflows/test_notify_all.py
